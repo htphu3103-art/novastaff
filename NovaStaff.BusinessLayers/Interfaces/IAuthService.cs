@@ -1,0 +1,17 @@
+﻿using NovaStaff.Models.DTOs.Auth;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace NovaStaff.BusinessLayers.Interfaces
+{
+    // Services/Interfaces/IAuthService.cs
+    public interface IAuthService
+    {
+        Task<LoginResponse> LoginAsync(string email, string password);
+        Task<string> RefreshTokenAsync(string refreshToken); // trả về accessToken mới
+        Task RevokeTokenAsync(string refreshToken);          // logout
+    }
+}

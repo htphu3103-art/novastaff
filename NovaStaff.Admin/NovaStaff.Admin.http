@@ -1,0 +1,6 @@
+@NovaStaff.Admin_HostAddress = http://localhost:5102
+
+GET {{NovaStaff.Admin_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
