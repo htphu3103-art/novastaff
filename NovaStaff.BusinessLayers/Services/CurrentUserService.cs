@@ -57,6 +57,16 @@ public class CurrentUserService : ICurrentUserService
         return _httpContextAccessor.HttpContext?.User?
             .FindFirst(ClaimTypes.Role)?.Value;
     }
+
+    public int? GetEmployeeId()
+    {
+        var value = _httpContextAccessor.HttpContext?
+            .User?
+            .FindFirst("employeeId")?
+            .Value;
+
+        return int.TryParse(value, out var id) ? id : (int?)null;
+    }
 }
 
 

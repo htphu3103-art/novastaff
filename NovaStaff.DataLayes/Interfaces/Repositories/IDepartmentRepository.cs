@@ -155,9 +155,10 @@ public interface IDepartmentRepository : IRepository<Department, int>
     /// </summary>
     Task<PagedResult<DepartmentDto>> GetRootsDtoAsync(
         DepartmentDescendantFilter filter,
-        int pageIndex,
-        int pageSize,
-        CancellationToken ct = default);
+    int pageIndex,
+    int pageSize,
+    int? managerId = null,
+    CancellationToken ct = default);
 
     /// <summary>
     /// L?y danh sách c?p dý?i (DTO) v?i phân trang và filter.
@@ -193,6 +194,14 @@ public interface IDepartmentRepository : IRepository<Department, int>
     /// Dùng khi: MoveAsync — ph?i ch?y trong transaction Serializable.
     /// </summary>
     Task ReparentSubtreeAsync(HierarchyId oldNode, HierarchyId newNode, CancellationToken ct = default);
+
+    Task<List<Department>> GetManagedDepartmentsAsync(
+    int managerEmployeeId,
+    CancellationToken ct = default);
+
+    Task<List<int>> GetDescendantIdsAsync(
+    IEnumerable<int> rootDepartmentIds,
+    CancellationToken ct = default);
 }
 
 

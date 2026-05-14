@@ -1,12 +1,13 @@
 using NovaStaff.BusinessLayers.DTOs.Departments;
+using NovaStaff.BusinessLayers.Interfaces;
 using NovaStaff.DataLayers.Interfaces;
 using NovaStaff.DataLayers.Interfaces.Repositories;
 using NovaStaff.Models.Common;
 using NovaStaff.Models.DTOs.Department;
 using NovaStaff.Models.Entities;
+using NovaStaff.Models.Enums;
 using NovaStaff.Models.Filters;
 using NovaStaff.Services.Interfaces;
-using NovaStaff.Models.Enums;
 using System.Data;
 
 namespace NovaStaff.Services;
@@ -15,17 +16,19 @@ public class DepartmentService : IDepartmentService
 {
     private readonly IUnitOfWork _uow;
     private readonly IDepartmentRepository _repo;
-    private readonly IEmployeeRepository _employeeRepo;  // ✅ NEW
+    private readonly IEmployeeRepository _employeeRepo; 
+    private readonly ICurrentUserService _currentUser;
 
     public DepartmentService(
         IUnitOfWork uow,
         IDepartmentRepository repo,
-        IEmployeeRepository employeeRepo)  // ✅ Inject AuditService
+        IEmployeeRepository employeeRepo,
+        ICurrentUserService currentUser)
     {
         _uow = uow;
         _repo = repo;
         _employeeRepo = employeeRepo;
-       
+        _currentUser = currentUser;
     }
 
     // =========================================================
@@ -33,19 +36,50 @@ public class DepartmentService : IDepartmentService
     // =========================================================
     public async Task<DepartmentDto> GetByIdAsync(int id, CancellationToken ct = default)
     {
-        return await _repo.GetDtoByIdAsync(id, ct)
+        var dept = await _repo.GetDtoByIdAsync(id, ct)
             ?? throw new KeyNotFoundException($"Department {id} không tồn tại.");
+
+        var role = _currentUser.GetRole();
+
+        if (role == UserRole.Manager.ToString())
+        {
+            var employeeId = _currentUser.GetEmployeeId()
+                ?? throw new UnauthorizedAccessException("Không xác định được nhân viên.");
+
+            if (dept.ManagerId != employeeId)
+                throw new UnauthorizedAccessException("Bạn không có quyền xem phòng ban này.");
+        }
+
+        return dept;
     }
 
     public async Task<PagedResult<DepartmentDto>> GetRootsAsync(
-        DepartmentDescendantQuery query,
-        CancellationToken ct = default)
+    DepartmentDescendantQuery query,
+    CancellationToken ct = default)
     {
+        var role = _currentUser.GetRole();
+
+        // Manager chỉ được xem root department mình quản lý
+        if (role == UserRole.Manager.ToString())
+        {
+            var employeeId = _currentUser.GetEmployeeId()
+                ?? throw new UnauthorizedAccessException(
+                    "Không xác định được nhân viên.");
+
+            return await _repo.GetRootsDtoAsync(
+                ToFilter(query),
+                query.PageIndex,
+                query.PageSize,
+                managerId: employeeId,
+                ct);
+        }
+
+        // HR/Admin xem toàn bộ
         return await _repo.GetRootsDtoAsync(
             ToFilter(query),
             query.PageIndex,
             query.PageSize,
-            ct);
+            ct: ct);
     }
 
     public async Task<PagedResult<DepartmentDto>> GetDescendantsAsync(

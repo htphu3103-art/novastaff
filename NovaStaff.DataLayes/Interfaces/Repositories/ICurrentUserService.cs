@@ -8,4 +8,6 @@ public interface ICurrentUserService
     string? GetUserAgent();
     string? GetRole();
     bool IsAuthenticated();
+
+    int? GetEmployeeId();
 }

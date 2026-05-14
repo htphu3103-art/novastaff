@@ -68,6 +68,11 @@ internal class DesignTimeCurrentUserService : ICurrentUserService
     public bool IsAuthenticated() => false;
 
     public string? GetRole() => "System";
+
+    public int? GetEmployeeId()
+    {
+        throw new NotImplementedException();
+    }
 }
 
 

@@ -28,6 +28,8 @@ public sealed class EmployeeFilter
 
     public EmployeeSortField SortBy { get; init; } = EmployeeSortField.FullName;
     public bool SortDescending { get; init; } = false;
+
+    public List<int>? DepartmentIds { get; init; }
 }
 
 public enum EmployeeSortField

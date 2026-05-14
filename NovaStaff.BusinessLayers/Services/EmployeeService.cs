@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using NovaStaff.BusinessLayers.Interfaces;
 using NovaStaff.DataLayers.Interfaces;
 using NovaStaff.DataLayers.Interfaces.Repositories;
 using NovaStaff.Models.Common;
@@ -17,17 +18,20 @@ public class EmployeeService : IEmployeeService
     private readonly IDepartmentRepository _deptRepo;
     private readonly IUnitOfWork _uow;
     private readonly IDateTimeService _dateTimeService;
+    private readonly ICurrentUserService _currentUser;
 
     public EmployeeService(
         IEmployeeRepository employeeRepo,
         IDepartmentRepository deptRepo,
         IUnitOfWork uow,
-        IDateTimeService dateTimeService) // Inject vào constructor
+        IDateTimeService dateTimeService,
+        ICurrentUserService currentUser)
     {
         _employeeRepo = employeeRepo;
         _deptRepo = deptRepo;
         _uow = uow;
         _dateTimeService = dateTimeService;
+        _currentUser = currentUser;
     }
 
     private static EmployeeDto MapToDto(Employee e) => new()
@@ -77,39 +81,96 @@ public class EmployeeService : IEmployeeService
     }
 
     public async Task<PagedResult<EmployeeDto>> GetPagedAsync(
-        EmployeeFilter filter,
-        int pageIndex,
-        int pageSize,
-        CancellationToken ct = default)
+    EmployeeFilter filter,
+    int pageIndex,
+    int pageSize,
+    CancellationToken ct = default)
     {
-        Expression<Func<Employee, bool>> predicate = e =>
-            (string.IsNullOrEmpty(filter.NameContains) || e.FullName.Contains(filter.NameContains)) &&
-            (string.IsNullOrEmpty(filter.CodeContains) || e.EmployeeCode.Contains(filter.CodeContains)) &&
-            (!filter.DepartmentId.HasValue || e.DepartmentID == filter.DepartmentId) &&
-            (!filter.SupervisorId.HasValue || e.SupervisorID == filter.SupervisorId) &&
-            (!filter.Status.HasValue || e.Status == filter.Status) &&
-            (!filter.Gender.HasValue || e.Gender == filter.Gender) &&
-            (string.IsNullOrEmpty(filter.ContractType) || e.ContractType == filter.ContractType);
+        // Department mà current user được phép xem
+        var accessibleDepartmentIds =
+            await GetAccessibleDepartmentIdsAsync(ct);
 
-        Func<IQueryable<Employee>, IOrderedQueryable<Employee>> orderBy = filter.SortBy switch
-        {
-            EmployeeSortField.EmployeeCode => q => filter.SortDescending ? q.OrderByDescending(x => x.EmployeeCode) : q.OrderBy(x => x.EmployeeCode),
-            EmployeeSortField.JoinDate => q => filter.SortDescending ? q.OrderByDescending(x => x.JoinDate) : q.OrderBy(x => x.JoinDate),
-            EmployeeSortField.BaseSalary => q => filter.SortDescending ? q.OrderByDescending(x => x.BaseSalary) : q.OrderBy(x => x.BaseSalary),
-            EmployeeSortField.Department => q => filter.SortDescending ? q.OrderByDescending(x => x.Department!.DepartmentName) : q.OrderBy(x => x.Department!.DepartmentName),
-            _ => q => filter.SortDescending ? q.OrderByDescending(x => x.FullName) : q.OrderBy(x => x.FullName),
-        };
+        Expression<Func<Employee, bool>> predicate = e =>
+
+            // Search
+            (string.IsNullOrEmpty(filter.NameContains)
+                || e.FullName.Contains(filter.NameContains)) &&
+
+            (string.IsNullOrEmpty(filter.CodeContains)
+                || e.EmployeeCode.Contains(filter.CodeContains)) &&
+
+            // Filter
+            (!filter.DepartmentId.HasValue
+                || e.DepartmentID == filter.DepartmentId) &&
+
+            (!filter.SupervisorId.HasValue
+                || e.SupervisorID == filter.SupervisorId) &&
+
+            (!filter.Status.HasValue
+                || e.Status == filter.Status) &&
+
+            (!filter.Gender.HasValue
+                || e.Gender == filter.Gender) &&
+
+            (string.IsNullOrEmpty(filter.ContractType)
+                || e.ContractType == filter.ContractType) &&
+
+            // Permission scope
+            (
+                !accessibleDepartmentIds.Any()
+                || (
+                    e.DepartmentID.HasValue &&
+                    accessibleDepartmentIds.Contains(
+                        e.DepartmentID.Value)
+                )
+            );
+
+        Func<IQueryable<Employee>,
+            IOrderedQueryable<Employee>> orderBy =
+            filter.SortBy switch
+            {
+                EmployeeSortField.EmployeeCode =>
+                    q => filter.SortDescending
+                        ? q.OrderByDescending(x => x.EmployeeCode)
+                        : q.OrderBy(x => x.EmployeeCode),
+
+                EmployeeSortField.JoinDate =>
+                    q => filter.SortDescending
+                        ? q.OrderByDescending(x => x.JoinDate)
+                        : q.OrderBy(x => x.JoinDate),
+
+                EmployeeSortField.BaseSalary =>
+                    q => filter.SortDescending
+                        ? q.OrderByDescending(x => x.BaseSalary)
+                        : q.OrderBy(x => x.BaseSalary),
+
+                EmployeeSortField.Department =>
+                    q => filter.SortDescending
+                        ? q.OrderByDescending(x => x.Department!.DepartmentName)
+                        : q.OrderBy(x => x.Department!.DepartmentName),
+
+                _ =>
+                    q => filter.SortDescending
+                        ? q.OrderByDescending(x => x.FullName)
+                        : q.OrderBy(x => x.FullName),
+            };
 
         var result = await _employeeRepo.GetPagedAsync(
-            pageIndex, pageSize,
+            pageIndex,
+            pageSize,
             filter: predicate,
             orderBy: orderBy,
-            include: q => q.Include(x => x.Department).Include(x => x.Supervisor),
-            trackChanges: false, ct: ct);
+            include: q => q
+                .Include(x => x.Department)
+                .Include(x => x.Supervisor),
+            trackChanges: false,
+            ct: ct);
 
         return new PagedResult<EmployeeDto>(
             result.Items.Select(MapToDto).ToList(),
-            result.TotalCount, result.PageIndex, result.PageSize);
+            result.TotalCount,
+            result.PageIndex,
+            result.PageSize);
     }
 
     public async Task<IEnumerable<EmployeeDto>> GetByDepartmentAsync(int departmentId, CancellationToken ct = default)
@@ -131,7 +192,29 @@ public class EmployeeService : IEmployeeService
         var emps = await _employeeRepo.GetSubordinatesAsync(managerId, false, q => q.Include(x => x.Department).Include(x => x.Supervisor), ct);
         return emps.Select(MapToDto);
     }
+    public async Task<IEnumerable<EmployeeManagerDto>> GetManagersAsync(CancellationToken ct = default)
+    {
+        var result = await _employeeRepo.GetPagedAsync(
+            pageIndex: 1,
+            pageSize: int.MaxValue,
+            filter: e => e.User != null && e.User.Role == UserRole.Manager,
+            orderBy: q => q.OrderBy(e => e.FullName),
+            include: q => q.Include(e => e.Department).Include(e => e.User),
+            trackChanges: false,
+            ct: ct);
 
+        return result.Items.Select(e => new EmployeeManagerDto
+        {
+            EmployeeID = e.EmployeeID,
+            EmployeeCode = e.EmployeeCode,
+            FullName = e.FullName,
+            Position = e.Position,
+            DepartmentId = e.DepartmentID,
+            DepartmentName = e.Department?.DepartmentName,
+            Email = e.Email,
+            Phone = e.Phone,
+        });
+    }
     // ========================= CREATE =========================
 
     public async Task<EmployeeDto> CreateAsync(CreateEmployeeRequest request, CancellationToken ct = default)
@@ -355,5 +438,34 @@ public class EmployeeService : IEmployeeService
             currentSupervisorId = supervisor.SupervisorID;
         }
         return false;
+    }
+
+    private async Task<List<int>> GetAccessibleDepartmentIdsAsync(
+    CancellationToken ct)
+    {
+        var role = _currentUser.GetRole();
+
+        // HR/Admin => unrestricted
+        if (role != UserRole.Manager.ToString())
+            return [];
+
+        var employeeId = _currentUser.GetEmployeeId()
+            ?? throw new UnauthorizedAccessException(
+                "Không xác định được nhân viên.");
+
+        var managedDepartments = await _deptRepo
+            .GetManagedDepartmentsAsync(employeeId, ct);
+
+        var rootIds = managedDepartments
+            .Select(x => x.DepartmentID)
+            .ToList();
+
+        var descendantIds = await _deptRepo
+            .GetDescendantIdsAsync(rootIds, ct);
+
+        return rootIds
+            .Union(descendantIds)
+            .Distinct()
+            .ToList();
     }
 }

@@ -99,8 +99,8 @@ public class AuditInterceptor : SaveChangesInterceptor
 
     private void ApplySystemFields(DbContext context)
     {
-        var userId = _currentUserService?.GetUserId();
-        var userName = _currentUserService?.GetDisplayName() ?? "System";
+        var userId = _currentUserService.GetUserId();
+        var userName = _currentUserService.GetDisplayName();
 
         foreach (var entry in context.ChangeTracker.Entries<BaseEntity>())
         {
@@ -108,19 +108,28 @@ public class AuditInterceptor : SaveChangesInterceptor
             {
                 case EntityState.Added:
                     entry.Entity.CreatedDate = DateTime.UtcNow;
-                    entry.Entity.CreatedBy = userId;
-                    entry.Entity.CreatedByName = userName;
+
+                    if (userId.HasValue)
+                        entry.Entity.CreatedBy = userId;
+
+                    if (!string.IsNullOrWhiteSpace(userName))
+                        entry.Entity.CreatedByName = userName;
+
                     break;
 
                 case EntityState.Modified:
                     entry.Entity.ModifiedDate = DateTime.UtcNow;
-                    entry.Entity.ModifiedBy = userId;
-                    entry.Entity.ModifiedByName = userName;
 
-                    // Ch?n vi?c ghi ðè các trý?ng Created vào AuditLog khi Update
+                    if (userId.HasValue)
+                        entry.Entity.ModifiedBy = userId;
+
+                    if (!string.IsNullOrWhiteSpace(userName))
+                        entry.Entity.ModifiedByName = userName;
+
                     entry.Property(e => e.CreatedDate).IsModified = false;
                     entry.Property(e => e.CreatedBy).IsModified = false;
                     entry.Property(e => e.CreatedByName).IsModified = false;
+
                     break;
 
                     // Case EntityState.Deleted ð? ðý?c xóa hoàn toàn ð? th?c hi?n Hard Delete
@@ -130,7 +139,7 @@ public class AuditInterceptor : SaveChangesInterceptor
 
     private List<AuditEntry> OnBeforeSaveChanges(DbContext context)
     {
-        var userId = _currentUserService?.GetUserId()?.ToString() ?? "System";
+        var userId = _currentUserService.GetUserId()?.ToString();
         var ip = _currentUserService?.GetIpAddress();
         var agent = _currentUserService?.GetUserAgent();
         var entries = new List<AuditEntry>();

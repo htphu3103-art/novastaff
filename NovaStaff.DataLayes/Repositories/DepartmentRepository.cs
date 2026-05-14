@@ -1,4 +1,4 @@
-// DataLayers/Repositories/DepartmentRepository.cs
+ï»¿// DataLayers/Repositories/DepartmentRepository.cs
 using Microsoft.EntityFrameworkCore;
 using NovaStaff.DataLayers.Interfaces.Repositories;
 using NovaStaff.Models.Common;
@@ -20,15 +20,15 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
     /// Map Department ? DepartmentDto.
     ///
     /// includeHasChildren = false (default):
-    ///   B? qua subquery HasChildren — dùng cho list/paging l?n
-    ///   ð? tránh N EXISTS subquery per row gây bottleneck.
+    ///   B? qua subquery HasChildren â€” dÃ¹ng cho list/paging l?n
+    ///   Ä‘? trÃ¡nh N EXISTS subquery per row gÃ¢y bottleneck.
     ///
     /// includeHasChildren = true:
-    ///   B?t subquery EXISTS — ch? dùng khi result set nh?:
+    ///   B?t subquery EXISTS â€” ch? dÃ¹ng khi result set nh?:
     ///   GetById (1 row), GetChildren (F1 c?a 1 node).
     ///
-    /// EF Core d?ch HasChildren thành EXISTS inline trong cùng câu SQL,
-    /// nhýng v?n là per-row cost ? ki?m soát ch?t qua flag này.
+    /// EF Core d?ch HasChildren thÃ nh EXISTS inline trong cÃ¹ng cÃ¢u SQL,
+    /// nhÆ°ng v?n lÃ  per-row cost ? ki?m soÃ¡t ch?t qua flag nÃ y.
     /// </summary>
     private Expression<Func<Department, DepartmentDto>> MapToDto(bool includeHasChildren = false)
     {
@@ -64,7 +64,7 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
         int departmentId,
         CancellationToken ct = default)
     {
-        // Global filter Employee (IsDeleted = 0) t? ð?ng áp d?ng
+        // Global filter Employee (IsDeleted = 0) t? Ä‘?ng Ã¡p d?ng
         return await _context.Employees
             .AnyAsync(e => e.DepartmentID == departmentId, ct);
     }
@@ -100,8 +100,8 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
     }
 
     /// <summary>
-    /// Repo assume normalizedCode ð? ðý?c chu?n hóa b?i Service (Trim + ToUpperInvariant).
-    /// Không normalize l?i ? ðây — single source of truth ? Service.
+    /// Repo assume normalizedCode Ä‘? Ä‘Æ°?c chu?n hÃ³a b?i Service (Trim + ToUpperInvariant).
+    /// KhÃ´ng normalize l?i ? Ä‘Ã¢y â€” single source of truth ? Service.
     /// </summary>
     public async Task<bool> CodeExistsAsync(
         string normalizedCode,
@@ -148,19 +148,19 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
     }
 
     /// <summary>
-    /// Sinh OrgNode m?i — t?p trung node logic t?i Repository.
+    /// Sinh OrgNode m?i â€” t?p trung node logic t?i Repository.
     ///
     /// Root: 1 query (GetLastRootNodeAsync)
     /// Child: 2 query (GetPositionAsync + GetLastChildNodeAsync)
     ///
-    /// N?u scale l?n (10k+ departments, concurrent cao), có th? g?p thành 1 raw SQL:
+    /// N?u scale l?n (10k+ departments, concurrent cao), cÃ³ th? g?p thÃ nh 1 raw SQL:
     ///   SELECT parent.OrgNode, MAX(child.OrgNode)
     ///   FROM Departments parent
     ///   LEFT JOIN Departments child ON child.OrgNode.GetAncestor(1) = parent.OrgNode
     ///   WHERE parent.DepartmentID = @id
     ///   GROUP BY parent.OrgNode
     ///
-    /// Hi?n t?i 2 round-trip ch?p nh?n ðý?c cho h? th?ng HRM t?m v?a.
+    /// Hi?n t?i 2 round-trip ch?p nh?n Ä‘Æ°?c cho h? th?ng HRM t?m v?a.
     /// </summary>
     public async Task<(HierarchyId newNode, HierarchyId? parentNode)> GenerateNewNodeAsync(
         int? parentId,
@@ -173,14 +173,14 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
         }
 
         var parentNode = await GetPositionAsync(parentId.Value, ct)
-            ?? throw new KeyNotFoundException($"Parent department {parentId} không t?n t?i.");
+            ?? throw new KeyNotFoundException($"Parent department {parentId} khÃ´ng t?n t?i.");
 
         var lastChild = await GetLastChildNodeAsync(parentNode, ct);
         return (parentNode.GetDescendant(lastChild, null), parentNode);
     }
 
     // =========================================================
-    // TREE QUERY (Entity — ph?c v? mutation logic)
+    // TREE QUERY (Entity â€” ph?c v? mutation logic)
     // =========================================================
 
     public async Task<IReadOnlyList<Department>> GetChildrenAsync(
@@ -206,7 +206,7 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
     // =========================================================
 
     /// <summary>
-    /// Manager thý?ng qu?n l? ít ph?ng ban ? t?p nh? ? b?t HasChildren an toàn.
+    /// Manager thÆ°?ng qu?n l? Ã­t ph?ng ban ? t?p nh? ? b?t HasChildren an toÃ n.
     /// </summary>
     public async Task<IReadOnlyList<DepartmentDto>> GetByManagerAsync(
         int managerEmployeeId,
@@ -224,7 +224,7 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
     // DTO PROJECTION
     // =========================================================
 
-    /// <summary>GetById ? 1 row ? b?t HasChildren, không có per-row cost ðáng k?.</summary>
+    /// <summary>GetById ? 1 row ? b?t HasChildren, khÃ´ng cÃ³ per-row cost Ä‘Ã¡ng k?.</summary>
     public async Task<DepartmentDto?> GetDtoByIdAsync(
         int id,
         CancellationToken ct = default)
@@ -257,7 +257,7 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
     }
 
     /// <summary>
-    /// GetDescendants — paging l?n ? t?t HasChildren tránh N EXISTS subquery per row.
+    /// GetDescendants â€” paging l?n ? t?t HasChildren trÃ¡nh N EXISTS subquery per row.
     /// </summary>
     public async Task<PagedResult<DepartmentDto>> GetDescendantsDtoAsync(
     int departmentId,
@@ -323,56 +323,40 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
         return new PagedResult<DepartmentDto>(items, total, pageIndex, pageSize);
     }
 
-    /// <summary>GetRoots — paging ? t?t HasChildren, l? do nhý GetDescendants.</summary>
+    /// <summary>GetRoots â€” paging ? t?t HasChildren, l? do nhÆ° GetDescendants.</summary>
     public async Task<PagedResult<DepartmentDto>> GetRootsDtoAsync(
-        DepartmentDescendantFilter filter,
-        int pageIndex,
-        int pageSize,
-        CancellationToken ct = default)
+    DepartmentDescendantFilter filter,
+    int pageIndex,
+    int pageSize,
+    int? managerId = null,
+    CancellationToken ct = default)
     {
         var query = _dbSet
             .AsNoTracking()
             .Where(d => d.OrgNode.GetLevel() == 1);
 
+        if (managerId.HasValue)
+        {
+            query = query.Where(d => d.ManagerEmployeeID == managerId.Value);
+        }
+
         query = ApplyFilter(query, filter);
+
         var total = await query.CountAsync(ct);
+
         query = ApplySort(query, filter);
 
         var items = await query
-    .Skip((pageIndex - 1) * pageSize)
-    .Take(pageSize)
-    .Select(MapToDto(includeHasChildren: false))
-    .ToListAsync(ct);
-
-        // ===== B?T Ð?U B? SUNG HAS CHILDREN =====
-
-        // l?y OrgNode c?a các root
-        var rootNodes = await _dbSet
-            .Where(d => items.Select(i => i.Id).Contains(d.DepartmentID))
-            .Select(d => new { d.DepartmentID, d.OrgNode })
+            .Skip((pageIndex - 1) * pageSize)
+            .Take(pageSize)
+            .Select(MapToDto(includeHasChildren: false))
             .ToListAsync(ct);
 
-        var rootNodeValues = rootNodes.Select(x => x.OrgNode).ToList();
-
-        // l?y danh sách node có con (1 query)
-        var nodesHavingChildren = await _dbSet
-            .Where(d => rootNodeValues.Any(x => x == d.OrgNode.GetAncestor(1)))
-            .Select(d => d.OrgNode.GetAncestor(1))
-            .Distinct()
-            .ToListAsync(ct);
-
-        // map l?i vào DTO
-        var nodeMap = rootNodes.ToDictionary(x => x.DepartmentID, x => x.OrgNode);
-
-        foreach (var item in items)
-        {
-            if (nodeMap.TryGetValue(item.Id, out var node))
-            {
-                item.HasChildren = nodesHavingChildren.Contains(node);
-            }
-        }
-
-        return new PagedResult<DepartmentDto>(items, total, pageIndex, pageSize);
+        return new PagedResult<DepartmentDto>(
+            items,
+            total,
+            pageIndex,
+            pageSize);
     }
 
     // =========================================================
@@ -392,7 +376,7 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
     }
 
     // =========================================================
-    // PRIVATE HELPERS (DRY — tránh l?p filter/sort logic)
+    // PRIVATE HELPERS (DRY â€” trÃ¡nh l?p filter/sort logic)
     // =========================================================
 
     private static IQueryable<Department> ApplyFilter(
@@ -425,6 +409,43 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
             (_, false) => query.OrderBy(d => d.OrgNode),
             (_, true) => query.OrderByDescending(d => d.OrgNode)
         };
+    }
+
+    public async Task<List<Department>> GetManagedDepartmentsAsync(
+    int managerEmployeeId,
+    CancellationToken ct = default)
+    {
+        return await _dbSet
+            .AsNoTracking()
+            .Where(d => d.ManagerEmployeeID == managerEmployeeId)
+            .OrderBy(d => d.OrgNode)
+            .ToListAsync(ct);
+    }
+    public async Task<List<int>> GetDescendantIdsAsync(
+    IEnumerable<int> rootDepartmentIds,
+    CancellationToken ct = default)
+    {
+        var roots = rootDepartmentIds
+            .Distinct()
+            .ToList();
+
+        if (!roots.Any())
+            return [];
+
+        var rootNodes = await _dbSet
+            .Where(d => roots.Contains(d.DepartmentID))
+            .Select(d => d.OrgNode)
+            .ToListAsync(ct);
+
+        return await _dbSet
+            .AsNoTracking()
+            .Where(d =>
+                rootNodes.Any(root =>
+                    d.OrgNode.IsDescendantOf(root)) &&
+                !roots.Contains(d.DepartmentID))
+            .Select(d => d.DepartmentID)
+            .Distinct()
+            .ToListAsync(ct);
     }
 }
 

@@ -99,4 +99,11 @@ public class EmployeeController : ControllerBase
         await _employeeService.TransferDepartmentAsync(id, request.NewDepartmentId, ct);
         return NoContent();
     }
+    [HttpGet("managers")]
+    [ProducesResponseType(typeof(IEnumerable<EmployeeManagerDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetManagers(CancellationToken ct)
+    {
+        var result = await _employeeService.GetManagersAsync(ct);
+        return Ok(result);
+    }
 }

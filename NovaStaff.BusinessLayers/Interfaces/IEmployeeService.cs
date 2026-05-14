@@ -230,4 +230,6 @@ public interface IEmployeeService
         int id,
         int newDepartmentId,
         CancellationToken ct = default);
+
+    Task<IEnumerable<EmployeeManagerDto>> GetManagersAsync(CancellationToken ct = default);
 }

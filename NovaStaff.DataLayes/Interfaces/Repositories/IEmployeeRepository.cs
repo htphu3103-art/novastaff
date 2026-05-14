@@ -77,4 +77,14 @@ public interface IEmployeeRepository : IRepository<Employee, int>
         string phone,
         int? excludeId = null,
         CancellationToken ct = default);
+
+    Task<IEnumerable<Employee>> GetManagersAsync(
+    bool trackChanges = false,
+    Func<IQueryable<Employee>, IQueryable<Employee>>? include = null,
+    CancellationToken ct = default);
+    Task<List<Employee>> GetByDepartmentIdsAsync(
+    IEnumerable<int> departmentIds,
+    bool trackChanges = false,
+    Func<IQueryable<Employee>, IQueryable<Employee>>? include = null,
+    CancellationToken ct = default);
 }
