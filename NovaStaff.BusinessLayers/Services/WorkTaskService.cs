@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using NovaStaff.BusinessLayers.Interfaces;
 using NovaStaff.DataLayers.Interfaces;
 using NovaStaff.DataLayers.Interfaces.Repositories;
 using NovaStaff.Models.Common;
@@ -17,17 +18,20 @@ public class WorkTaskService : IWorkTaskService
     private readonly IEmployeeRepository _employeeRepo;
     private readonly IUnitOfWork _uow;
     private readonly IDateTimeService _dateTimeService;
+    private readonly ICurrentUserService _currentUser;
 
     public WorkTaskService(
         IWorkTaskRepository workTaskRepo,
         IEmployeeRepository employeeRepo,
         IUnitOfWork uow,
-        IDateTimeService dateTimeService)
+        IDateTimeService dateTimeService,
+        ICurrentUserService currentUser)
     {
         _workTaskRepo = workTaskRepo;
         _employeeRepo = employeeRepo;
         _uow = uow;
         _dateTimeService = dateTimeService;
+        _currentUser = currentUser;
     }
 
     private static WorkTaskDto MapToDto(WorkTask t) => new()
@@ -63,11 +67,31 @@ public class WorkTaskService : IWorkTaskService
     public async Task<PagedResult<WorkTaskDto>> GetPagedAsync(
         WorkTaskFilter filter, int pageIndex, int pageSize, CancellationToken ct = default)
     {
+        filter ??= new WorkTaskFilter();
+
+        if (!_currentUser.IsAuthenticated())
+            throw new UnauthorizedAccessException("Unauthenticated");
+
+        var role = _currentUser.GetRole();
+        var currentEmployeeId = _currentUser.GetEmployeeId();
+        var isAdmin = string.Equals(role, UserRole.Admin.ToString(), StringComparison.OrdinalIgnoreCase);
+        var isManager = string.Equals(role, UserRole.Manager.ToString(), StringComparison.OrdinalIgnoreCase);
+        var isStaff = string.Equals(role, UserRole.Staff.ToString(), StringComparison.OrdinalIgnoreCase);
+
+        if (!isAdmin && !isManager && !isStaff)
+            throw new UnauthorizedAccessException("Role is not allowed to access work tasks.");
+
+        if ((isManager || isStaff) && !currentEmployeeId.HasValue)
+            throw new UnauthorizedAccessException("Current account is missing EmployeeId.");
+
         Expression<Func<WorkTask, bool>> predicate = x =>
             (string.IsNullOrEmpty(filter.TitleContains) || x.Title.Contains(filter.TitleContains)) &&
             (!filter.Status.HasValue || x.Status == filter.Status) &&
             (!filter.Priority.HasValue || x.Priority == filter.Priority) &&
-            (!filter.EmployeeId.HasValue || x.EmployeeID == filter.EmployeeId);
+            (!filter.EmployeeId.HasValue || x.EmployeeID == filter.EmployeeId) &&
+            (isAdmin ||
+             (isManager && x.Employee != null && x.Employee.SupervisorID == currentEmployeeId!.Value) ||
+             (isStaff && x.EmployeeID == currentEmployeeId!.Value));
 
         var result = await _workTaskRepo.GetPagedAsync(
             pageIndex, pageSize,
@@ -220,3 +244,4 @@ public class WorkTaskService : IWorkTaskService
         await _uow.SaveChangesAsync(ct);
     }
 }
+
