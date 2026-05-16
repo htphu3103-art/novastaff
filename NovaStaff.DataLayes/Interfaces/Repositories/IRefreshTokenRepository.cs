@@ -11,8 +11,9 @@ namespace NovaStaff.DataLayers.Interfaces.Repositories
     public interface IRefreshTokenRepository
     {
         Task AddAsync(RefreshToken token);
-        Task<RefreshToken?> GetActiveAsync(string token);
-        Task RevokeAsync(string token, string? replacedBy = null);
+        Task<RefreshToken?> GetByHashAsync(string tokenHash);
+        Task<RefreshToken?> GetActiveAsync(string tokenHash);
+        Task RevokeAsync(string tokenHash, string? replacedBy = null);
         Task RevokeAllByUserAsync(int userId); // Logout tất cả thiết bị
     }
 }

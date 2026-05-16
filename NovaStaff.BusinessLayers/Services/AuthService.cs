@@ -7,6 +7,7 @@ using NovaStaff.Models.Common;
 using NovaStaff.Models.DTOs.Auth;
 using NovaStaff.Models.Entities;
 using NovaStaff.Services.Interfaces;
+using NovaStaff.Helpers;
 
 public class AuthService : IAuthService
 {
@@ -59,11 +60,12 @@ public class AuthService : IAuthService
 
         var accessToken = _tokenService.GenerateAccessToken(user);
         var refreshTokenValue = _tokenService.GenerateRefreshToken();
+        var refreshTokenHash = TokenHasher.Hash(refreshTokenValue);
 
         await _refreshTokenRepo.AddAsync(new RefreshToken
         {
             UserID = user.UserID,
-            Token = refreshTokenValue,
+            TokenHash = refreshTokenHash,
             CreatedAt = now,
             ExpiresAt = now.AddDays(_jwt.RefreshTokenDays)
         });
@@ -73,13 +75,25 @@ public class AuthService : IAuthService
         return new LoginResponse(accessToken, refreshTokenValue);
     }
 
-    public async Task<string> RefreshTokenAsync(string refreshToken)
+    public async Task<RefreshResponse> RefreshTokenAsync(string refreshToken)
     {
         var now = _clock.UtcNow;
+        var refreshTokenHash = TokenHasher.Hash(refreshToken);
 
-        var storedToken = await _refreshTokenRepo.GetActiveAsync(refreshToken);
+        var storedToken = await _refreshTokenRepo.GetByHashAsync(refreshTokenHash);
 
-        if (storedToken is null || !storedToken.IsActive(now))
+        if (storedToken is null)
+            throw new UnauthorizedAccessException("Invalid or expired refresh token");
+
+        if (storedToken.RevokedAt is not null)
+        {
+            await _refreshTokenRepo.RevokeAllByUserAsync(storedToken.UserID);
+            await _uow.SaveChangesAsync();
+
+            throw new UnauthorizedAccessException("Refresh token reuse detected");
+        }
+
+        if (!storedToken.IsActive(now))
             throw new UnauthorizedAccessException("Invalid or expired refresh token");
 
         var user = await _userRepo.GetByIdAsync(storedToken.UserID);
@@ -88,13 +102,14 @@ public class AuthService : IAuthService
             throw new UnauthorizedAccessException("User not found");
 
         var newRefreshToken = _tokenService.GenerateRefreshToken();
+        var newRefreshTokenHash = TokenHasher.Hash(newRefreshToken);
 
-        await _refreshTokenRepo.RevokeAsync(refreshToken, replacedBy: newRefreshToken);
+        await _refreshTokenRepo.RevokeAsync(refreshTokenHash, replacedBy: newRefreshTokenHash);
 
         await _refreshTokenRepo.AddAsync(new RefreshToken
         {
             UserID = user.UserID,
-            Token = newRefreshToken,
+            TokenHash = newRefreshTokenHash,
             CreatedAt = now,
             ExpiresAt = now.AddDays(_jwt.RefreshTokenDays)
         });
@@ -103,17 +118,18 @@ public class AuthService : IAuthService
 
         await _uow.SaveChangesAsync();
 
-        return newAccessToken;
+        return new RefreshResponse(newAccessToken, newRefreshToken);
     }
 
     public async Task RevokeTokenAsync(string refreshToken)
     {
-        var storedToken = await _refreshTokenRepo.GetActiveAsync(refreshToken);
+        var refreshTokenHash = TokenHasher.Hash(refreshToken);
+        var storedToken = await _refreshTokenRepo.GetActiveAsync(refreshTokenHash);
 
         if (storedToken is null)
             throw new UnauthorizedAccessException("Token not found");
 
-        await _refreshTokenRepo.RevokeAsync(refreshToken);
+        await _refreshTokenRepo.RevokeAsync(refreshTokenHash);
         await _uow.SaveChangesAsync();
     }
 

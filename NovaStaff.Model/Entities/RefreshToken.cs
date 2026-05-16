@@ -10,15 +10,15 @@ namespace NovaStaff.Models.Entities
     {
         public int Id { get; set; }
         public int UserID { get; set; }
-        public string Token { get; set; } = string.Empty;
+        public string TokenHash { get; set; } = string.Empty;
         public DateTime ExpiresAt { get; set; }
         public DateTime CreatedAt { get; set; }
-        public bool IsRevoked { get; set; }
-        public string? ReplacedByToken { get; set; } // Audit trail
+        public DateTime? RevokedAt { get; set; }
+        public string? ReplacedByTokenHash { get; set; } // Audit trail
 
         public User User { get; set; } = null!;
 
         public bool IsExpired(DateTime now) => ExpiresAt <= now;
-        public bool IsActive(DateTime now) => !IsRevoked && !IsExpired(now);
+        public bool IsActive(DateTime now) => RevokedAt is null && !IsExpired(now);
     }
 }

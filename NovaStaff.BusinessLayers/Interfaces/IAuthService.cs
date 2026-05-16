@@ -11,7 +11,7 @@ namespace NovaStaff.BusinessLayers.Interfaces
     public interface IAuthService
     {
         Task<LoginResponse> LoginAsync(string email, string password);
-        Task<string> RefreshTokenAsync(string refreshToken); // trả về accessToken mới
+        Task<RefreshResponse> RefreshTokenAsync(string refreshToken);
         Task RevokeTokenAsync(string refreshToken);          // logout
     }
 }

@@ -1,5 +1,6 @@
 ﻿// DataLayers/Repositories/RefreshTokenRepository.cs
 using Microsoft.EntityFrameworkCore;
+using NovaStaff.DataLayers.Interfaces;
 using NovaStaff.DataLayers.Interfaces.Repositories;
 using NovaStaff.Models.Entities;
 
@@ -8,10 +9,14 @@ namespace NovaStaff.DataLayers.Repositories;
 public class RefreshTokenRepository : IRefreshTokenRepository
 {
     private readonly AppDbContext _context;
+    private readonly IDateTimeService _clock;
 
-    public RefreshTokenRepository(AppDbContext context)
+    public RefreshTokenRepository(
+        AppDbContext context,
+        IDateTimeService clock)
     {
         _context = context;
+        _clock = clock;
     }
 
     public async Task AddAsync(RefreshToken token)
@@ -19,31 +24,44 @@ public class RefreshTokenRepository : IRefreshTokenRepository
         await _context.RefreshTokens.AddAsync(token);
     }
 
-    public async Task<RefreshToken?> GetActiveAsync(string token)
+    public async Task<RefreshToken?> GetByHashAsync(string tokenHash)
     {
         return await _context.RefreshTokens
-            .Include(rt => rt.User)
-            .FirstOrDefaultAsync(rt => rt.Token == token && !rt.IsRevoked);
+            .AsTracking()
+            .FirstOrDefaultAsync(rt => rt.TokenHash == tokenHash);
     }
 
-    public async Task RevokeAsync(string token, string? replacedBy = null)
+    public async Task<RefreshToken?> GetActiveAsync(
+    string tokenHash)
+    {
+        var now = _clock.UtcNow;
+
+        return await _context.RefreshTokens
+            .AsTracking()
+            .FirstOrDefaultAsync(rt =>
+                rt.TokenHash == tokenHash &&
+                rt.RevokedAt == null &&
+                rt.ExpiresAt > now);
+    }
+
+    public async Task RevokeAsync(string tokenHash, string? replacedBy = null)
     {
         var refreshToken = await _context.RefreshTokens
-            .FirstOrDefaultAsync(rt => rt.Token == token);
+            .FirstOrDefaultAsync(rt => rt.TokenHash == tokenHash);
 
         if (refreshToken is null) return;
 
-        refreshToken.IsRevoked = true;
-        refreshToken.ReplacedByToken = replacedBy;
+        refreshToken.RevokedAt = _clock.UtcNow;
+        refreshToken.ReplacedByTokenHash = replacedBy;
     }
 
     public async Task RevokeAllByUserAsync(int userId)
     {
         var tokens = await _context.RefreshTokens
-            .Where(rt => rt.UserID == userId && !rt.IsRevoked)
+            .Where(rt => rt.UserID == userId && rt.RevokedAt == null)
             .ToListAsync();
 
         foreach (var token in tokens)
-            token.IsRevoked = true;
+            token.RevokedAt = _clock.UtcNow;
     }
 }
