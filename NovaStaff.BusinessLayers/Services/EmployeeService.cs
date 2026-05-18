@@ -8,7 +8,10 @@ using NovaStaff.Models.Entities;
 using NovaStaff.Models.Enums;
 using NovaStaff.Models.Filters;
 using NovaStaff.Services.Interfaces;
+using NovaStaff.Shared.Activation;
 using System.Linq.Expressions;
+using Microsoft.Extensions.Configuration;
+using NovaStaff.Shared.Email;
 
 namespace NovaStaff.BusinessLayers.Services;
 
@@ -16,22 +19,34 @@ public class EmployeeService : IEmployeeService
 {
     private readonly IEmployeeRepository _employeeRepo;
     private readonly IDepartmentRepository _deptRepo;
+    private readonly IUserRepository _userRepo;          // ← thêm field
     private readonly IUnitOfWork _uow;
     private readonly IDateTimeService _dateTimeService;
     private readonly ICurrentUserService _currentUser;
+    private readonly IActivationTokenService _activationTokenService;
+    private readonly IEmailService _emailService;
+    private readonly IConfiguration _configuration;      // ← thêm field
 
     public EmployeeService(
         IEmployeeRepository employeeRepo,
         IDepartmentRepository deptRepo,
+        IUserRepository userRepo,                        // ← thêm
         IUnitOfWork uow,
         IDateTimeService dateTimeService,
-        ICurrentUserService currentUser)
+        ICurrentUserService currentUser,
+        IActivationTokenService activationTokenService,
+        IEmailService emailService,
+        IConfiguration configuration)                    // ← thêm
     {
         _employeeRepo = employeeRepo;
         _deptRepo = deptRepo;
+        _userRepo = userRepo;                            // ← thêm
         _uow = uow;
         _dateTimeService = dateTimeService;
         _currentUser = currentUser;
+        _activationTokenService = activationTokenService;
+        _emailService = emailService;
+        _configuration = configuration;                  // ← thêm
     }
 
     private static EmployeeDto MapToDto(Employee e) => new()
@@ -271,7 +286,7 @@ public class EmployeeService : IEmployeeService
         try
         {
             await _employeeRepo.AddAsync(emp, ct);
-            await _uow.SaveChangesAsync(ct); // ← Interceptor tự ghi AuditLog
+            await _uow.SaveChangesAsync(ct);
         }
         catch (DbUpdateException ex)
         {
@@ -288,6 +303,38 @@ public class EmployeeService : IEmployeeService
 
             throw;
         }
+
+        // 6. TẠO USER
+        var user = new User
+        {
+            EmployeeID = emp.EmployeeID,
+            Username = email,
+            PasswordHash = string.Empty,
+            IsActive = false,
+            IsLocked = false,
+            FailedLoginAttempts = 0
+        };
+
+        await _userRepo.AddAsync(user, ct);
+        await _uow.SaveChangesAsync(ct);
+
+        // 7. TẠO ACTIVATION TOKEN → lưu Redis
+        var tokenData = new ActivationTokenData(
+            UserId: user.UserID,
+            Email: emp.Email,
+            FullName: emp.FullName
+        );
+
+        var token = await _activationTokenService.CreateAsync(tokenData, ct);
+
+        // 8. GỬI EMAIL
+        var frontendUrl = _configuration["App:FrontendUrl"]!;
+        var activationLink = $"{frontendUrl}/activate?token={token}";
+
+        _ = _emailService.SendAsync(
+            EmployeeEmailTemplates.Welcome(emp.Email, emp.FullName, activationLink),
+            ct
+        );
 
         return MapToDto(emp);
     }
