@@ -1,4 +1,5 @@
 ﻿using NovaStaff.Models.DTOs.Auth;
+using NovaStaff.Models.Requests;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,5 +14,6 @@ namespace NovaStaff.BusinessLayers.Interfaces
         Task<LoginResponse> LoginAsync(string email, string password);
         Task<RefreshResponse> RefreshTokenAsync(string refreshToken);
         Task RevokeTokenAsync(string refreshToken);          // logout
+        Task ActivateAccountAsync(ActivateAccountRequest request, CancellationToken ct = default);
     }
 }

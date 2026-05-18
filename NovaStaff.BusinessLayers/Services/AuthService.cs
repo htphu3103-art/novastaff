@@ -3,12 +3,13 @@ using Microsoft.Extensions.Options;
 using NovaStaff.BusinessLayers.Interfaces;
 using NovaStaff.DataLayers.Interfaces;
 using NovaStaff.DataLayers.Interfaces.Repositories;
+using NovaStaff.Helpers;
 using NovaStaff.Models.Common;
 using NovaStaff.Models.DTOs.Auth;
 using NovaStaff.Models.Entities;
+using NovaStaff.Models.Requests;
 using NovaStaff.Services.Interfaces;
-using NovaStaff.Helpers;
-
+using NovaStaff.Shared.Activation;
 public class AuthService : IAuthService
 {
     private readonly IUserRepository _userRepo;
@@ -17,6 +18,7 @@ public class AuthService : IAuthService
     private readonly IUnitOfWork _uow;
     private readonly IDateTimeService _clock;
     private readonly JwtSettings _jwt;
+    private readonly IActivationTokenService _activationTokenService;
 
     public AuthService(
         IUserRepository userRepo,
@@ -24,7 +26,8 @@ public class AuthService : IAuthService
         ITokenService tokenService,
         IUnitOfWork uow,
         IDateTimeService clock,
-        IOptions<JwtSettings> jwtOptions)
+        IOptions<JwtSettings> jwtOptions,
+        IActivationTokenService activationTokenService)
     {
         _userRepo = userRepo;
         _refreshTokenRepo = refreshTokenRepo;
@@ -32,6 +35,7 @@ public class AuthService : IAuthService
         _uow = uow;
         _clock = clock;
         _jwt = jwtOptions.Value;
+        _activationTokenService = activationTokenService;
     }
 
     public async Task<LoginResponse> LoginAsync(string email, string password)
@@ -41,6 +45,8 @@ public class AuthService : IAuthService
         if (user is null)
             throw new UnauthorizedAccessException("Invalid email or password");
 
+        if (!user.IsActive)
+            throw new UnauthorizedAccessException("Tài khoản chưa được kích hoạt. Vui lòng kiểm tra email.");
         var now = _clock.UtcNow;
 
         if (user.IsLocked && user.LockoutEnd > now)
@@ -153,5 +159,42 @@ public class AuthService : IAuthService
         }
 
         await _uow.SaveChangesAsync();
+    }
+    public async Task ActivateAccountAsync(ActivateAccountRequest request, CancellationToken ct = default)
+    {
+        // 1. VALIDATE PASSWORD MATCH
+        if (request.NewPassword != request.ConfirmPassword)
+            throw new ArgumentException("Mật khẩu xác nhận không khớp");
+
+        if (request.NewPassword.Length < 8)
+            throw new ArgumentException("Mật khẩu phải có ít nhất 8 ký tự");
+
+        // 2. LẤY TOKEN TỪ REDIS
+        var tokenData = await _activationTokenService.GetAsync(request.Token, ct);
+        if (tokenData == null)
+            throw new InvalidOperationException("Link kích hoạt không hợp lệ hoặc đã hết hạn");
+
+        // 3. LẤY USER
+        // ✅ đúng thứ tự parameter
+        var user = await _userRepo.GetByIdAsync(
+            tokenData.UserId,
+            trackChanges: true,
+            include: null,
+            ct: ct)
+            ?? throw new KeyNotFoundException("Tài khoản không tồn tại");
+
+        if (user.IsActive)
+            throw new InvalidOperationException("Tài khoản đã được kích hoạt trước đó");
+
+        // 4. ĐẶT MẬT KHẨU + KÍCH HOẠT
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+        user.IsActive = true;
+        user.LastPasswordChange = DateTime.UtcNow;
+
+        _userRepo.Update(user);
+        await _uow.SaveChangesAsync(ct);
+
+        // 5. XÓA TOKEN KHỎI REDIS
+        await _activationTokenService.RevokeAsync(request.Token, ct);
     }
 }
