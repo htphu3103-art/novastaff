@@ -1,25 +1,27 @@
 # NovaStaff — Architecture Decision Record (ADR)
 
-> **Mục đích**: File này là "memory" cho AI assistant và onboarding tài liệu cho team.  
-> Paste toàn bộ file này vào đầu mỗi conversation mới để AI follow đúng hướng.  
-> Cập nhật file này mỗi khi có quyết định kiến trúc mới được thống nhất.
+> **Mục đích**: File này đóng vai trò là "memory" (bộ nhớ dài hạn) cho AI assistant và tài liệu onboarding cho team development.
+> **Quy tắc sử dụng**: Cung cấp toàn bộ nội dung file này vào đầu mỗi conversation mới để AI nắm bắt đúng context, các quy tắc kiến trúc đã chốt, tránh đi sai hướng.
+> **Bảo trì**: Cập nhật file này ngay lập tức mỗi khi có quyết định kiến trúc hoặc convention mới được thống nhất ở cả Backend lẫn Frontend.
 
 ---
 
-## 1. Stack
+## 1. Technology Stack
 
-| Layer | Technology |
-|---|---|
-| Backend | ASP.NET Core, C# |
-| ORM | Entity Framework Core |
-| Database | SQL Server (dùng HierarchyId native) |
-| Frontend | React + TypeScript |
+| Layer | Technology | Chú thích |
+|---|---|---|
+| **Backend** | ASP.NET Core, C# | RESTful API, Global Exception Handling |
+| **ORM** | Entity Framework Core | Code-first, Configurations mapping riêng biệt |
+| **Database** | SQL Server | Sử dụng kiểu `HierarchyId` native cho dữ liệu phân cấp |
+| **Frontend** | React + TypeScript | Strict mode, Modular Architecture |
+| **Networking** | Axios | Tích hợp Interceptors, Credential support (Cookies) |
 
 ---
 
 ## 2. Project Structure
 
-```
+### 2.1. Backend Structure
+```text
 NovaStaff/
 ├── Models/
 │   ├── Common/          # BaseEntity, PagedResult<T>
@@ -41,271 +43,104 @@ NovaStaff/
     └── [Entity]Service.cs
 ```
 
----
-
-## 3. Core Models
-
-### BaseEntity
-```csharp
-public abstract class BaseEntity
-{
-    public int?      CreatedBy       { get; set; }
-    public string?   CreatedByName   { get; set; }
-    public DateTime  CreatedDate     { get; set; }
-    public int?      ModifiedBy      { get; set; }
-    public string?   ModifiedByName  { get; set; }
-    public DateTime? ModifiedDate    { get; set; }
-}
-```
-
-### PagedResult\<T\>
-```csharp
-public record PagedResult<T>(
-    IEnumerable<T> Items,
-    int TotalCount,
-    int PageIndex,
-    int PageSize)
-{
-    public int  TotalPages  => (int)Math.Ceiling(TotalCount / (double)PageSize);
-    public bool HasPrevious => PageIndex > 0;
-    public bool HasNext     => PageIndex < TotalPages - 1;
-
-    // Factory method — dùng khi không có kết quả
-    public static PagedResult<T> Empty(int pageIndex, int pageSize)
-        => new(new List<T>(), 0, pageIndex, pageSize);
-}
-```
+### 2.2. Frontend Structure (Isolation & Modular)
+- **Quy tắc**: Môi trường phát triển frontend phải được cô lập (isolated). Bắt buộc sửa đổi code theo dạng module, tránh "context bloating" (phình to context khi AI quét toàn dự án).
+- Bỏ qua các build artifacts (như `node_modules`, `dist`) thông qua cấu hình `.gitignore` và Git exclusions chặt chẽ.
 
 ---
 
-## 4. AppDbContext — Các Convention Global
+## 3. Frontend: Kiến trúc & Convention (Mới cập nhật)
 
-### Hard Delete & AuditLog Strategy
-- Hệ thống sử dụng **Hard Delete** (xóa vật lý) thay vì Soft Delete để giảm tải DB và tăng tốc độ truy vấn (tránh overhead của việc luôn phải check `IsDeleted = 0`).
-- Toàn bộ dữ liệu trước khi xóa sẽ được **AuditInterceptor** chụp lại (chụp full dữ liệu OriginalValue) và lưu vào bảng `AuditLogs`.
-- Đảm bảo tuân thủ truy vết (Compliance) mà không gây phình to bảng nghiệp vụ.
+### 3.1. Authentication & API Communication
+- **Axios Instance**: Bắt buộc cấu hình Axios với `withCredentials: true`.
+- **Token Management**: Tách biệt hoàn toàn storage concerns. **TUYỆT ĐỐI KHÔNG** quản lý/lưu trữ Refresh Token ở client-side (localStorage/sessionStorage). Refresh Token phải được set an toàn qua HttpOnly Cookie từ backend.
+- **Auto Refresh (401 Retry Logic)**: Tích hợp logic tự động refresh token trong Axios Interceptor khi nhận lỗi 401 (Unauthorized), sau đó tự động retry lại original request bị lỗi một cách trong suốt với người dùng.
+- **Login Payload**: Giao tiếp chuẩn với API qua payload Username/Password tương thích với backend contract.
 
-### Decimal Precision
-- Global default: `precision 18, scale 2`
-- Override thủ công trong `IEntityTypeConfiguration` nếu cần khác
-
-### Configuration
-- Tất cả `IEntityTypeConfiguration<T>` tự động load qua `ApplyConfigurationsFromAssembly`
-- Mỗi entity có file Configuration riêng trong `DataLayers/Configurations/`
-
----
-
-## 5. Generic Repository Pattern
-
-### IRepository\<TEntity, TKey\>
-Contract đầy đủ — không thêm method vào đây trừ khi áp dụng cho **mọi** entity:
-
-```
-READ:
-  GetByIdAsync(id, trackChanges, include, ct)
-  GetAllAsync(trackChanges, ct)               -- chỉ dùng bảng nhỏ
-  FindAsync(predicate, trackChanges, include, ct)
-
-PAGED:
-  GetPagedAsync(pageIndex, pageSize, filter, orderBy, include, trackChanges, ct)
-
-EXISTS / COUNT:
-  ExistsAsync(id, ct)
-  ExistsAsync(predicate, ct)
-  CountAsync(ct)
-  CountAsync(predicate, ct)
-
-WRITE:
-  AddAsync(entity, ct)
-  AddRangeAsync(entities, ct)
-  Update(entity)
-  Delete(entity)          -- hard delete: xóa vật lý, kết hợp AuditInterceptor
-```
-
-### GenericRepository\<TEntity, TKey\> — Implementation Notes
-```
-- Cache _pkName tại constructor từ EF metadata (tránh reflection lặp lại)
-- GetByIdAsync fast path: FindAsync nếu không có include
-- GetByIdAsync include path: dùng _pkName đã cache (KHÔNG hardcode "Id")
-- Delete(): hard delete — _dbSet.Remove(entity), lịch sử sẽ được AuditInterceptor tự động lưu.
-```
+### 3.2. UI/UX & Transitions (Senior-Grade)
+- **UI Stability**: Triệt tiêu triệt để layout shifts (flickering) khi loading data hoặc điều hướng. Bắt buộc sử dụng **fixed-height containers** cho các skeleton states.
+- **Loading Delay**: Áp dụng thống nhất delay loading nhân tạo (ví dụ: **300ms**) cho các thao tác API phản hồi quá nhanh. Đảm bảo smooth transition cho người dùng (đặc biệt ở Dashboard, Department, Attendance modules).
+- **Scrollbar Aesthetics**: Hạn chế dùng thanh cuộn mặc định thô kệch của trình duyệt. Yêu cầu ẩn track scrollbar hoặc dùng CSS custom scrollbar mang phong cách minimalist, tinh tế. Tránh để layout bị vỡ do overflow.
+- **Activation Flow**: Route `/activate` xử lý logic thiết lập mật khẩu an toàn, redirect chuẩn xác và không được conflict/premature redirect về Login page.
 
 ---
 
-## 6. Layer Rules
+## 4. Backend: Core Models & Conventions
 
-### Repository Layer
-```
-✅ Làm việc với Entity — KHÔNG trả DTO
-✅ Có thể query bảng liên quan cho EXISTS / COUNT
-✅ Dùng Filter object thay EF delegates trong specific repository
-❌ Không chứa business logic
-❌ Không expose IQueryable, Expression<Func<>>, Func<IQueryable<>> ra interface
-   → Ngoại lệ duy nhất: IRepository generic (GetPagedAsync, FindAsync)
-   → Specific repository interface (IDepartmentRepository, v.v.) phải dùng Filter object
-```
+### 4.1. Base Models
+- **BaseEntity**: Chứa thông tin audit cơ bản (`CreatedBy`, `CreatedByName`, `CreatedDate`, `ModifiedBy`, `ModifiedByName`, `ModifiedDate`).
+- **PagedResult\<T\>**: Record class tiêu chuẩn hóa việc phân trang (`Items`, `TotalCount`, `PageIndex`, `PageSize`). Hỗ trợ thuộc tính tính toán (`TotalPages`, `HasNext`) và factory method `Empty()`.
 
-### Service Layer
-```
-✅ Chứa business logic
-✅ Quản lý transaction boundary
-✅ Quyết định IsolationLevel cho từng operation
-✅ Gọi domain logic (ví dụ: HierarchyId.GetDescendant)
-❌ Không trực tiếp query DbContext
-```
-
-### Filter Object Pattern
-Thay vì truyền EF delegates ra ngoài specific repository interface:
-```csharp
-// ❌ Sai — leak EF abstraction
-Task<PagedResult<T>> GetXxxPagedAsync(
-    Expression<Func<T, bool>>? predicate,
-    Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy, ...)
-
-// ✅ Đúng — persistence-agnostic
-Task<PagedResult<T>> GetXxxPagedAsync(
-    XxxFilter filter, int pageIndex, int pageSize, ...)
-```
-Implementation map filter sang EF query **bên trong** repository.
+### 4.2. Database & Entity Framework
+- **Hard Delete & AuditLog Strategy**: Hệ thống sử dụng **Hard Delete** (xóa vật lý) thay vì Soft Delete để giảm tải DB và tăng tốc độ truy vấn (tránh overhead của việc luôn phải check `IsDeleted = 0`). Toàn bộ dữ liệu trước khi xóa sẽ được `AuditInterceptor` (chụp full dữ liệu OriginalValue) lưu tự động vào bảng `AuditLogs` để đảm bảo tuân thủ truy vết (Compliance) mà không làm phình bảng nghiệp vụ.
+- **Decimal Precision**: Global default là `precision 18, scale 2`. Chỉ override thủ công trong `IEntityTypeConfiguration` nếu thực sự cần thiết.
+- **Configuration**: Tất cả `IEntityTypeConfiguration<T>` tự động load qua `ApplyConfigurationsFromAssembly`. Mỗi entity có file Configuration riêng trong `DataLayers/Configurations/`.
 
 ---
 
-## 7. Department — Quyết định đã thống nhất
+## 5. Backend: Layer Rules & Patterns
 
-### Entity
-```csharp
-// OrgNode setter KHÔNG tự tính OrgLevel
-// DB computed column là single source of truth
-public HierarchyId OrgNode
-{
-    get => _orgNode;
-    set => _orgNode = value;   // ← chỉ assign, không tính OrgLevel
-}
-public short? OrgLevel { get; private set; }  // EF tự populate sau query
+### 5.1. Generic Repository Pattern (`IRepository<TEntity, TKey>`)
+- **Nguyên tắc**: Interface Generic chứa contract đầy đủ (`Read`, `Paged`, `Exists`, `Count`, `Write`). **KHÔNG** thêm method vào interface này trừ khi logic đó áp dụng cho **mọi** entity.
+- **Implementation Notes (`GenericRepository`)**:
+  - Cache `_pkName` tại constructor từ EF metadata (tránh reflection lặp lại).
+  - `GetByIdAsync` fast path: Dùng `FindAsync` nếu không có include.
+  - `GetByIdAsync` include path: Dùng `_pkName` đã cache (KHÔNG hardcode tên trường là "Id").
+  - `Delete()`: Hard delete qua `_dbSet.Remove(entity)`.
 
-// Nếu cần OrgLevel trước khi SaveChanges → gọi trực tiếp:
-// var level = newNode.GetLevel();
-```
+### 5.2. Repository Layer Checklist
+- ✅ Chỉ làm việc và trả về Entity — **KHÔNG** trả về DTO.
+- ✅ Có thể query các bảng liên quan cho nghiệp vụ `EXISTS` / `COUNT`.
+- ❌ **KHÔNG** chứa business logic.
+- ❌ **KHÔNG** expose `IQueryable`, `Expression<Func<>>`, `Func<IQueryable<>>` ra interface cụ thể.
+- ✅ Phải dùng **Filter Object Pattern** (ví dụ `XxxFilter filter`) để truyền tham số lọc thay vì dùng EF delegates. Map filter sang EF query ở bên trong repository.
 
-### IDepartmentRepository — Method Contract
-```
-✅ HasEmployeesAsync(int departmentId, ct)
-✅ GetDescendantsPagedAsync(int departmentId, DepartmentDescendantFilter, pageIndex, pageSize, ct)
-✅ GetPositionAsync(int departmentId, ct)        -- lấy OrgNode theo ID
-✅ GetLastRootNodeAsync(ct)
-✅ GetLastChildNodeAsync(HierarchyId parentNode, ct)
-✅ GetByManagerAsync(int managerEmployeeId, ct)
-✅ GenerateNewNodeAsync(int? parentId, ct) -- Tập trung logic sinh node tại Repository để tối ưu round-trip DB
-❌ GetParentNodeAsync — ĐÃ XÓA, đã rename thành GetPositionAsync
-```
+### 5.3. Service Layer Checklist
+- ✅ Inject `IUnitOfWork`, không inject `DbContext` trực tiếp.
+- ✅ Chứa 100% Business Logic.
+- ✅ Quản lý Transaction boundary và quyết định `IsolationLevel` cho từng operation.
+- ❌ **KHÔNG** trực tiếp query `DbContext`.
+- ✅ Gọi domain logic (ví dụ: `HierarchyId.GetDescendant`).
+- ✅ Gọi `SaveChangesAsync()` thông qua UnitOfWork, không qua Repository.
 
-### DepartmentDescendantFilter
-```csharp
-public sealed class DepartmentDescendantFilter
-{
-    public string?             NameContains   { get; init; }
-    public bool?               IsActive       { get; init; }
-    public int?                ManagerId      { get; init; }
-    public DepartmentSortField SortBy         { get; init; } = DepartmentSortField.OrgNode;
-    public bool                SortDescending { get; init; } = false;
-}
-
-public enum DepartmentSortField { OrgNode, Name, CreatedAt }
-```
-
-### DepartmentConfiguration — Index quan trọng
-```
-IX_Departments_OrgNode       — UNIQUE (bắt buộc, safety net cho race condition)
-IX_Departments_Code          — UNIQUE, partial: [Code] IS NOT NULL AND [IsDeleted] = 0
-IX_Departments_ManagerEmployeeID
-IX_Departments_Status        — (IsActive, IsDeleted)
-```
+### 5.4. Controller & Web API Rules (Program.cs)
+- ✅ **KHÔNG** dùng try-catch ở Controller để xử lý lỗi nghiệp vụ. Controller phải mỏng.
+- ✅ Bắt buộc ném thẳng Exception từ Service (VD: `KeyNotFoundException`, `ArgumentException`). `GlobalExceptionMiddleware` sẽ tự động bắt và map sang mã HTTP status code tương ứng (404, 400...).
+- ✅ Đọc cấu hình CORS (`AllowedOrigins`) từ `appsettings.json`.
+- ✅ **Fail-Fast Principle**: Quăng `InvalidOperationException` ngay lúc Startup (Program.cs) nếu cấu hình CORS bị thiếu. Tuyệt đối không dùng Fallback rỗng để tránh lỗi ngầm nguy hiểm trên Frontend.
 
 ---
 
-## 8. HierarchyId Tree — Atomicity (Critical)
+## 6. Backend: Department & HierarchyId (Critical Domain)
 
-### Vấn đề
-```
-Thread A: GetLastChildNode → /1/2/
-Thread B: GetLastChildNode → /1/2/   ← cùng lúc
-Thread A: Insert /1/3/ ✅
-Thread B: Insert /1/3/ 💥 duplicate OrgNode
-```
+### 6.1. Entity & Repository
+- **OrgNode**: Property setter **KHÔNG** tự tính `OrgLevel`. DB computed column là single source of truth.
+- Tập trung logic truy vấn Tree Node tại Repository để tối ưu round-trip DB (`GetPositionAsync`, `GetLastRootNodeAsync`, `GetLastChildNodeAsync`, `GenerateNewNodeAsync`).
+- XÓA bỏ `GetParentNodeAsync` (đã rename thành `GetPositionAsync`).
 
-### Giải pháp đã chọn: Serializable Transaction trong Service
+### 6.2. Indexes (Safety Net)
+- Bắt buộc phải có **UNIQUE INDEX** trên `OrgNode` (`IX_Departments_OrgNode`) làm safety net phòng chống race condition.
+- Có partial UNIQUE INDEX trên `Code` (`[Code] IS NOT NULL AND [IsDeleted] = 0`).
 
+### 6.3. Concurrency & Atomicity
+- **Vấn đề**: Khi nhiều thread cùng lúc (Thread A, Thread B) tạo child node sẽ sinh ra trùng lặp OrgNode.
+- **Giải pháp**: Bắt buộc bọc bằng `Serializable Transaction` trong Service.
 ```csharp
-// DepartmentService.CreateAsync
+// Mẫu trong DepartmentService.CreateAsync
 await using var tx = await _uow.BeginTransactionAsync(IsolationLevel.Serializable);
-
-var parentNode = await _repo.GetPositionAsync(cmd.ParentId, ct);
-var lastChild  = await _repo.GetLastChildNodeAsync(parentNode!, ct);
-var newNode    = parentNode!.GetDescendant(lastChild, null);  // domain logic ở đây
-
-var dept = new Department { OrgNode = newNode, ... };
-await _repo.AddAsync(dept, ct);
-await _uow.SaveChangesAsync(ct);
+// Lấy parent, lấy lastChild, sinh newNode (domain logic), SaveChanges
 await tx.CommitAsync(ct);
 ```
 
-### Rules
-```
-✅ GenerateNewNodeAsync (tree construction) thuộc Repository để gom các truy vấn nội bộ (LastChild/LastRoot) tránh lộ logic ra ngoài.
-✅ UNIQUE constraint trên OrgNode là safety net bắt buộc (đã có)
-✅ Serializable isolation bắt buộc cho các hàm Create/Move department (Phòng Phantom Read)
-✅ Root department: HierarchyId.GetRoot().GetDescendant(lastRoot, null)
-✅ Child department: parentNode.GetDescendant(lastChild, null)
-```
+---
+
+## 7. Version Control & Professional Git Workflow
+- Cập nhật quy trình làm việc chuẩn Senior GitHub Workflows:
+  - **Trunk-based Development**: Merge code thường xuyên, giảm xung đột.
+  - **Atomic Commits/PRs**: Mỗi PR hoặc commit chỉ giải quyết một chức năng/bug cụ thể, không dồn cục (No massive commits).
+  - **Conventional Commits**: Đặt tên commit có ý nghĩa (`feat:`, `fix:`, `chore:`, `refactor:`, `style:`).
+  - Không push thẳng code rác, test logs hoặc build artifacts. Đảm bảo lịch sử Git sạch sẽ và dễ maintain.
 
 ---
 
-## 9. Entities Overview
-
-| Entity | PK | Ghi chú |
-|---|---|---|
-| Employee | EmployeeID (int) | |
-| Department | DepartmentID (int) | HierarchyId tree |
-| User | UserId | Auth account |
-| WorkTask | | |
-| LeaveRequest | | |
-| AttendanceRecord | | |
-| PayrollPeriod | | |
-| PayrollDetail | | |
-| AuditLog | | |
-
----
-
-## 10. Checklist khi tạo Repository mới
-
-```
-□ Implement GenericRepository<TEntity, TKey>
-□ Interface chỉ khai báo method đặc thù — không duplicate method từ IRepository
-□ Specific filter/sort → tạo Filter object riêng, không dùng EF delegates
-□ Query-only method → AsNoTracking()
-□ Cross-table EXISTS → dùng _context.OtherDbSet trực tiếp, không qua repo khác
-□ Không throw NotImplementedException — nếu chưa implement thì chưa khai báo vào interface
-```
-
----
-
-## 11. Checklist khi tạo Service mới
-
-```
-□ Inject IUnitOfWork, không inject DbContext trực tiếp
-□ Business logic nằm ở đây, không ở Repository
-□ Tree operation (HierarchyId) → Serializable transaction
-□ Validate bằng repository helper (HasEmployeesAsync, ExistsAsync...) trước khi write
-□ SaveChangesAsync() gọi qua UnitOfWork, không qua Repository
-```
-
----
-
-## 12. API & Web Rules (Controller & Program.cs)
-
-```
-□ Controller KHÔNG dùng try-catch để xử lý lỗi nghiệp vụ (ví dụ: KeyNotFoundException).
-□ Cứ throw thẳng Exception từ Service. `GlobalExceptionMiddleware` sẽ tự động bắt và map sang mã HTTP tương ứng (404, 400...).
-□ CORS phải được đọc từ `appsettings.json` (AllowedOrigins).
-□ Áp dụng nguyên tắc **Fail-Fast**: Quăng `InvalidOperationException` ngay lúc Startup nếu cấu hình CORS bị thiếu, tuyệt đối không dùng Fallback rỗng để tránh lỗi ngầm trên Frontend.
-```
+> **Note**: Hệ thống đang áp dụng mô hình phân tách rõ ràng giữa DB Performance (Hard Delete + AuditInterceptor), Concurrency Control (Serializable), và Frontend UX cực kỳ mượt mà. Đảm bảo tuân thủ 100% trong quá trình thêm mới code.
