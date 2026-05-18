@@ -1,6 +1,7 @@
-using NovaStaff.Models.Common;
-using NovaStaff.Models.Enums;
+Ôªøusing NovaStaff.Models.Common;
 using NovaStaff.Models.Entities;
+using NovaStaff.Models.Enums;
+
 public class User : BaseEntity
 {
     public int UserID { get; set; }
@@ -11,11 +12,12 @@ public class User : BaseEntity
 
     public UserRole Role { get; set; } = UserRole.Staff;
 
+    // ?? Activation
+    public bool IsActive { get; set; } = false; // ‚Üê th√™m
+
     // ?? Security
     public bool IsLocked { get; set; }
     public int FailedLoginAttempts { get; set; }
-
-    // ?? ThÍm DUY NH?T 1 field (r?t ·ng gi·)
     public DateTime? LockoutEnd { get; set; }
 
     // ?? Tracking
@@ -25,7 +27,3 @@ public class User : BaseEntity
     public virtual Employee? Employee { get; set; } = null;
     public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 }
-
-
-
-
