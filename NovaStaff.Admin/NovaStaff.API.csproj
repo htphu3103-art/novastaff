@@ -12,12 +12,14 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="StackExchange.Redis" Version="2.13.1" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
 
   <ItemGroup>
 	<ProjectReference Include="..\NovaStaff.BusinessLayers\NovaStaff.BusinessLayers.csproj" />
     <ProjectReference Include="..\NovaStaff.DataLayes\NovaStaff.DataLayers.csproj" />
+    <ProjectReference Include="..\NovaStaff.Infrastructure\NovaStaff.Infrastructure.csproj" />
     <ProjectReference Include="..\NovaStaff.Model\NovaStaff.Models.csproj" />
   </ItemGroup>
 	
