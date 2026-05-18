@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using NovaStaff.BusinessLayers.Interfaces;
@@ -13,7 +15,10 @@ using NovaStaff.Services;
 using NovaStaff.Services.Interfaces;
 using System.Security.Claims;
 using System.Text;
+using System.Threading.RateLimiting;
 using NovaStaff.Web.Middlewares;
+using StackExchange.Redis;
+using NovaStaff.Infrastructure;
 var builder = WebApplication.CreateBuilder(args);
 
 // ================================================================
@@ -21,7 +26,9 @@ var builder = WebApplication.CreateBuilder(args);
 // ================================================================
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<AuditInterceptor>();
+
 // Program.cs
+builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -70,6 +77,48 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader()
               .AllowCredentials();
     });
+});
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedProto;
+
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+
+    // ví dụ nếu dùng nginx local
+    // options.KnownProxies.Add(
+    //     IPAddress.Parse("127.0.0.1"));
+});
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy("loginPolicy", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: GetClientPartitionKey(httpContext),
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+            }));
+
+    options.AddPolicy("refreshPolicy", httpContext =>
+        RateLimitPartition.GetSlidingWindowLimiter(
+            partitionKey: GetRefreshPartitionKey(httpContext),
+            factory: _ => new SlidingWindowRateLimiterOptions
+            {
+                PermitLimit = 20,
+                Window = TimeSpan.FromMinutes(1),
+                SegmentsPerWindow = 4,
+                QueueLimit = 0,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+            }));
 });
 
 
@@ -161,6 +210,7 @@ var app = builder.Build();
 
 // Middleware x? l? l?i toàn c?c nên đ?t đ?u tiên
 app.UseMiddleware<GlobalExceptionMiddleware>();
+app.UseForwardedHeaders();
 
 if (app.Environment.IsDevelopment())
 {
@@ -173,15 +223,28 @@ if (app.Environment.IsDevelopment())
 // ?? LƯU ?: N?u React g?i HTTP (không có S) th? comment d?ng HttpsRedirection l?i đ? test d? hơn
 // app.UseHttpsRedirection(); 
 
-// ? KÍCH HO?T CORS: Ph?i đ?t trư?c Authentication và MapControllers
+// ? KÍCH HO?T CORS: aPh?i đ?t trư?c Authentication và MapControllers
 app.UseCors("AllowReactApp");
 
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapControllers();
 
 app.Run();
 
+static string GetRefreshPartitionKey(HttpContext httpContext)
+{
+    return GetClientPartitionKey(httpContext);
+}
+
+static string GetClientPartitionKey(HttpContext httpContext)
+{
+    return httpContext.Connection
+        .RemoteIpAddress?
+        .ToString()
+        ?? "unknown";
+}
 
 

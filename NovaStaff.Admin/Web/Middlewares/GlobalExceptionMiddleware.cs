@@ -62,6 +62,18 @@ public class GlobalExceptionMiddleware
                 "Business exception at {Path}. StatusCode: {StatusCode}. TraceId: {TraceId}",
                 context.Request.Path, statusCode, context.TraceIdentifier);
 
+        var errorCode = ex switch
+        {
+            AppException => ex.GetType().Name,
+
+            UnauthorizedAccessException => "UNAUTHORIZED",
+            ArgumentException => "BAD_REQUEST",
+            KeyNotFoundException => "NOT_FOUND",
+            InvalidOperationException => "VALIDATION_ERROR",
+
+            _ => "INTERNAL_SERVER_ERROR"
+        };
+
         var problem = new ProblemDetails
         {
             Status = statusCode,
@@ -70,16 +82,14 @@ public class GlobalExceptionMiddleware
             Detail = _env.IsDevelopment()
                 ? ex.Message
                 : statusCode < 500
-                    ? ex.Message       
+                    ? ex.Message
                     : "An unexpected error occurred.",
             Instance = context.Request.Path,
             Extensions =
-            {
-                ["traceId"]   = context.TraceIdentifier,
-                ["errorCode"] = ex is AppException
-                    ? ex.GetType().Name
-                    : "INTERNAL_SERVER_ERROR"
-            }
+    {
+        ["traceId"] = context.TraceIdentifier,
+        ["errorCode"] = errorCode
+    }
         };
 
         context.Response.StatusCode = statusCode;
