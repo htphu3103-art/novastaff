@@ -1,0 +1,129 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+/* Variables */
+:root {
+  --primary: #4f46e5;
+  --primary-light: #eef2ff;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --bg-main: #f1f5f9;
+  --card-bg: #ffffff;
+  --border: #e2e8f0;
+  --radius: 12px;
+}
+
+body {
+  background-color: var(--bg-main);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Modern Utilities */
+.glass-morphism {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+}
+
+.mesh-gradient {
+  background-color: #f1f5f9;
+  background-image:
+    radial-gradient(at 0% 0%, rgba(79, 70, 229, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(147, 51, 234, 0.1) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(79, 70, 229, 0.1) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(147, 51, 234, 0.15) 0px, transparent 50%);
+}
+
+/* Custom Scrollbar for Senior SaaS look */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* Utilities for Chat */
+.chat-scroll-area {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable; /* Ngăn layout bị giật khi scrollbar xuất hiện */
+}
+
+/* Hide scrollbar for sidebar unless hovering */
+.sidebar-scroll-area::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+.sidebar-scroll-area:hover::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.message-bubble-me {
+  background: linear-gradient(135deg, #185FA5 0%, #15508a 100%);
+  box-shadow: 0 2px 8px rgba(24, 95, 165, 0.15);
+}
+.message-bubble-other {
+  background: #f8fafc;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+}
+
+.input-focus-ring {
+  transition: all 0.2s ease;
+}
+.input-focus-ring:focus-within {
+  box-shadow: 0 0 0 3px rgba(24, 95, 165, 0.15);
+  border-color: #185FA5 !important;
+}
+
+/* Premium Transition Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Skeleton Pulse Animation */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .4;
+  }
+}
+
+.pulse-animation {
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

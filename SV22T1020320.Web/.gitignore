@@ -1,0 +1,64 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+build/
+coverage/
+
+# Framework caches
+.cache/
+.vite/
+.parcel-cache/
+.eslintcache
+.turbo/
+.next/
+
+# Testing artifacts
+playwright-report/
+test-results/
+
+# Storybook
+.storybook/
+storybook-static/
+
+# Temp files
+temp/
+tmp/
+
+# Env files
+.env
+.env.*
+.env.local
+.env.development
+.env.production
+
+# Generated code
+generated/
+**/generated/
+src/generated/
+api/generated/
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# TypeScript
+*.tsbuildinfo
