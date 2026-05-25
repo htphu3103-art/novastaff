@@ -9,94 +9,79 @@ public class DepartmentConfiguration : IEntityTypeConfiguration<Department>
 {
     public void Configure(EntityTypeBuilder<Department> builder)
     {
-        // ?? Base Audit Fields (CreatedDate, ModifiedDate, etc.) ?????????????????
+        // -- Base Audit Fields --
         BaseEntityConfiguration.ConfigureBaseEntity(builder);
 
-        // ?? B?ng & Constraints ?????????????????????????????????????????????????
+        // -- Bảng & Constraints --
         builder.ToTable("Departments", t =>
         {
-            t.HasCheckConstraint("CK_Department_Name", "LEN(LTRIM(DepartmentName)) > 0");
-            t.HasCheckConstraint("CK_Department_Code", "Code IS NULL OR LEN(LTRIM(Code)) > 0");
-            
-            // Th�m Temporal Table n?u b?n mu?n l�u l?ch s? thay �?i (t�y ch?n cho 10/10)
-            // t.IsTemporal(); 
+            t.HasCheckConstraint("CK_Department_Name", "LENGTH(TRIM(\"DepartmentName\")) > 0");
+            t.HasCheckConstraint("CK_Department_Code", "\"Code\" IS NULL OR LENGTH(TRIM(\"Code\")) > 0");
         });
 
-        // ?? Primary Key ????????????????????????????????????????????????????????
+        // -- Primary Key --
         builder.HasKey(d => d.DepartmentID);
         builder.Property(d => d.DepartmentID)
                .UseIdentityColumn();
 
-        // ?? Properties ?????????????????????????????????????????????????????????
+        // -- Properties --
         builder.Property(d => d.DepartmentName)
             .IsRequired()
             .HasMaxLength(100)
-            .HasColumnType("nvarchar(100)")
-            .HasComment("T�n ph?ng ban/b? ph?n");
+            .HasComment("Tên phòng ban/bộ phận");
 
         builder.Property(d => d.Code)
             .HasMaxLength(20)
             .IsUnicode(false)
-            .HasColumnType("varchar(20)")
-            .HasComment("M? �?nh danh ph?ng ban");
+            .HasComment("Mã định danh phòng ban");
 
-        builder.Property(d => d.OrgNode)
+        builder.Property(d => d.OrgPath)
             .IsRequired()
-            .HasColumnType("hierarchyid");
+            .HasMaxLength(200)
+            .HasComment("Đường dẫn phân cấp phòng ban (Materialized Path)");
 
         builder.Property(d => d.OrgLevel)
             .HasColumnType("smallint")
-            .HasComputedColumnSql("[OrgNode].GetLevel()", stored: false);
+            .IsRequired()
+            .HasComment("Cấp bậc phòng ban trong cây");
 
-        builder.Property(d => d.OrgLevel)
-            .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
-
-        // �? �?i t�n th�nh ManagerEmployeeID �? �?ng b? v?i b?ng Employee
+        // Để đổi tên thành ManagerEmployeeID để đồng bộ với bảng Employee
         builder.Property(d => d.ManagerEmployeeID) 
             .HasColumnType("int")
-            .HasComment("ID nh�n vi�n �ang gi? ch?c v? tr�?ng ph?ng");
+            .HasComment("ID nhân viên đang giữ chức vụ trưởng phòng");
 
         builder.Property(d => d.IsActive)
             .IsRequired()
             .HasDefaultValue(true);
 
         builder.Property(d => d.Description)
-            .HasMaxLength(500)
-            .HasColumnType("nvarchar(500)");
+            .HasMaxLength(500);
 
-        // ?? Relationships ??????????????????????????????????????????????????????
+        // -- Relationships --
 
-        // 1. M?t ph?ng ban c� nhi?u nh�n vi�n
+        // 1. Một phòng ban có nhiều nhân viên
         builder.HasMany(d => d.Employees)
             .WithOne(e => e.Department)
             .HasForeignKey(e => e.DepartmentID)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // 2. M?t ph?ng ban c� M?T tr�?ng ph?ng (tr? v? b?ng Employee)
+        // 2. Một phòng ban có MỘT trưởng phòng (trở về bảng Employee)
         builder.HasOne(d => d.Manager)
-            .WithMany() // Kh�ng c?n t?o ICollection<Department> b�n Employee cho ch?c danh n�y
+            .WithMany()
             .HasForeignKey(d => d.ManagerEmployeeID)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // ?? Global Query Filter ????????????????????????????????????????????????
-        
-
-        // ?? Indexes ????????????????????????????????????????????????????????????
-        builder.HasIndex(d => d.OrgNode)
+        // -- Indexes --
+        builder.HasIndex(d => d.OrgPath)
             .IsUnique()
-            .HasDatabaseName("IX_Departments_OrgNode");
+            .HasDatabaseName("IX_Departments_OrgPath");
 
         builder.HasIndex(d => d.Code)
             .IsUnique()
             .HasDatabaseName("IX_Departments_Code");
 
-        // Index h? tr? t?m ki?m theo Tr�?ng ph?ng nhanh h�n
+        // Index hỗ trợ tìm kiếm theo Trưởng phòng nhanh hơn
         builder.HasIndex(d => d.ManagerEmployeeID)
             .HasDatabaseName("IX_Departments_ManagerEmployeeID");
-
-        
     }
 }
-
-
-

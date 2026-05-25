@@ -1,0 +1,59 @@
+services:
+  # =====================================================
+  # PostgreSQL
+  # =====================================================
+  db:
+    image: postgres:16-alpine
+    container_name: novastaff-postgres-compose
+    environment:
+      POSTGRES_DB: NovaStaffDB
+      POSTGRES_USER: novastaff
+      POSTGRES_PASSWORD: NovaStaff@2024!
+    ports:
+      - "5433:5432"
+    volumes:
+      - novastaff-pgdata:/var/lib/postgresql/data
+    mem_limit: 1gb
+
+  # =====================================================
+  # Redis
+  # =====================================================
+  redis:
+    image: redis:7-alpine
+    container_name: novastaff-redis-compose
+    ports:
+      - "6380:6379"
+    volumes:
+      - novastaff-redisdata:/data
+    mem_limit: 128m
+
+  # =====================================================
+  # API (ASP.NET Core)
+  # =====================================================
+  api:
+    build: .
+    container_name: novastaff-api-compose
+    ports:
+      - "8081:8080"
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=NovaStaffDB;Username=novastaff;Password=NovaStaff@2024!
+      - ConnectionStrings__Redis=redis:6379
+      - ASPNETCORE_ENVIRONMENT=Development
+    depends_on:
+      - db
+      - redis
+    mem_limit: 256m
+
+# =====================================================
+# Volumes
+# =====================================================
+volumes:
+  novastaff-pgdata:
+  novastaff-redisdata:
+
+# =====================================================
+# Network
+# =====================================================
+networks:
+  default:
+    name: novastaff-compose-network

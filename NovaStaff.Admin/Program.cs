@@ -12,6 +12,7 @@ using NovaStaff.DataLayers.Interfaces.Repositories;
 using NovaStaff.DataLayers.Repositories;
 using NovaStaff.Models.Common;
 using NovaStaff.Services;
+using NovaStaff.Hubs;
 using NovaStaff.Services.Interfaces;
 using System.Security.Claims;
 using System.Text;
@@ -30,6 +31,7 @@ builder.Services.AddScoped<AuditInterceptor>();
 // Program.cs
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -40,7 +42,7 @@ builder.Services.AddSwaggerGen(c =>
         Scheme = "bearer",
         BearerFormat = "JWT",
         In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Description = "Nhập: Bearer {your token}"
+        Description = "Nháº­p: Bearer {your token}"
     });
 
     c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
@@ -59,14 +61,14 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Đọc danh sách tên miền từ appsettings.json
+// Äá»c danh sĂ¡ch tĂªn miá»n tá»« appsettings.json
 var origins = builder.Configuration
     .GetSection("AllowedOrigins")
     .Get<string[]>();
 
 if (origins is null || origins.Length == 0)
     throw new InvalidOperationException(
-        "AllowedOrigins chưa được cấu hình trong appsettings.json.");
+        "AllowedOrigins chÆ°a Ä‘Æ°á»£c cáº¥u hĂ¬nh trong appsettings.json.");
 
 builder.Services.AddCors(options =>
 {
@@ -88,7 +90,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownNetworks.Clear();
     options.KnownProxies.Clear();
 
-    // ví dụ nếu dùng nginx local
+    // vĂ­ dá»¥ náº¿u dĂ¹ng nginx local
     // options.KnownProxies.Add(
     //     IPAddress.Parse("127.0.0.1"));
 });
@@ -127,22 +129,32 @@ builder.Services.AddRateLimiter(options =>
 // ================================================================
 builder.Services.AddDbContext<AppDbContext>((sp, options) =>
 {
-    options.UseSqlServer(
+    options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
-        x => x.UseHierarchyId()
+        npgsqlOptions =>
+        {
+            npgsqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 6,
+                maxRetryDelay: TimeSpan.FromSeconds(5),
+                errorCodesToAdd: null
+            );
+        }
     );
+
     options.AddInterceptors(sp.GetRequiredService<AuditInterceptor>());
 });
 
 // ================================================================
-// 3. REPOSITORIES (Đ? m? các Repo quan tr?ng)
+// 3. REPOSITORIES (Ä? m? cĂ¡c Repo quan tr?ng)
 // ================================================================
 builder.Services.AddScoped(typeof(IRepository<,>), typeof(GenericRepository<,>));
 builder.Services.AddSingleton<IDateTimeService, DateTimeService>();
+builder.Services.AddSingleton<PresenceTracker>();
 builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
 builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<IWorkTaskRepository, WorkTaskRepository>();
@@ -162,8 +174,9 @@ builder.Services.AddScoped<IAttendanceService, AttendanceService>();
 builder.Services.AddScoped<ILeaveRequestService, LeaveRequestService>();
 builder.Services.AddScoped<ILeaveCalculator, LeaveCalculator>();
 builder.Services.AddScoped<IPayrollService, PayrollService>();
+builder.Services.AddScoped<IChatService, ChatService>();
 // ================================================================
-// 5. JWT Authentication (PHẢI Ở ĐÂY)
+// 5. JWT Authentication (PHáº¢I á» ÄĂ‚Y)
 // ================================================================
 builder.Services.Configure<JwtSettings>(
     builder.Configuration.GetSection("Jwt")
@@ -201,6 +214,23 @@ builder.Services.AddAuthentication(options =>
 
         ClockSkew = TimeSpan.Zero
     };
+
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+
+            // Nếu request là từ SignalR Hub (có chữ chathub)
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/chathub"))
+            {
+                // Trích xuất token từ query string để chứng thực
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
+    };
 });
 
 // ================================================================
@@ -208,7 +238,7 @@ builder.Services.AddAuthentication(options =>
 // ================================================================
 var app = builder.Build();
 
-// Middleware x? l? l?i toàn c?c nên đ?t đ?u tiên
+// Middleware x? l? l?i toĂ n c?c nĂªn Ä‘?t Ä‘?u tiĂªn
 app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseForwardedHeaders();
 
@@ -220,17 +250,61 @@ if (app.Environment.IsDevelopment())
 
 
 
-// ?? LƯU ?: N?u React g?i HTTP (không có S) th? comment d?ng HttpsRedirection l?i đ? test d? hơn
+// ?? LÆ¯U ?: N?u React g?i HTTP (khĂ´ng cĂ³ S) th? comment d?ng HttpsRedirection l?i Ä‘? test d? hÆ¡n
 // app.UseHttpsRedirection(); 
 
-// ? KÍCH HO?T CORS: aPh?i đ?t trư?c Authentication và MapControllers
+// ? KĂCH HO?T CORS: aPh?i Ä‘?t trÆ°?c Authentication vĂ  MapControllers
 app.UseCors("AllowReactApp");
 
 app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();
 
+app.MapHub<ChatHub>("/chathub");
 app.MapControllers();
+
+// ================================================================
+// 7. AUTO MIGRATION & DB CONNECTIVITY RETRY
+// ================================================================
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
+    var context = services.GetRequiredService<AppDbContext>();
+
+    const int maxRetries = 6;
+    const int delaySeconds = 5;
+
+    for (int attempt = 1; attempt <= maxRetries; attempt++)
+    {
+        try
+        {
+            logger.LogInformation(
+                "Applying migrations (Attempt {Attempt}/{MaxRetries})...",
+                attempt, maxRetries);
+
+            await context.Database.MigrateAsync();
+
+            logger.LogInformation("Database migration successful.");
+            break;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex,
+                "Migration failed (Attempt {Attempt}/{MaxRetries})",
+                attempt, maxRetries);
+
+            if (attempt == maxRetries)
+            {
+                logger.LogError(ex, "Migration failed permanently.");
+                // Graceful exit
+                return;
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(delaySeconds));
+        }
+    }
+}
 
 app.Run();
 

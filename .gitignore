@@ -40,3 +40,6 @@ appsettings.Local.json
 # Others
 *.log
 NoteAdmin.txt
+
+# Personal notes
+friction-log.md

@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+ï»¿using Microsoft.EntityFrameworkCore;
 using NovaStaff.Models.Common;
 using NovaStaff.Models.Entities;
 using System.Reflection;
@@ -11,16 +11,16 @@ public class AppDbContext : DbContext
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     #region DbSets
-    // --- Qu?n l? Nhân s? ---
+    // --- Qu?n l? NhÃ¢n s? ---
     public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<User> Users => Set<User>();
 
-    // --- Qu?n l? Công vi?c & Ngh? phép ---
+    // --- Qu?n l? CÃ´ng vi?c & Ngh? phÃ©p ---
     public DbSet<WorkTask> WorkTasks => Set<WorkTask>();
     public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
 
-    // --- Qu?n l? Ch?m công & Lýõng ---
+    // --- Qu?n l? Ch?m cÃ´ng & LÆ°Æ¡ng ---
     public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
     public DbSet<PayrollPeriod> PayrollPeriods => Set<PayrollPeriod>();
     public DbSet<PayrollDetail> PayrollDetails => Set<PayrollDetail>();
@@ -30,6 +30,12 @@ public class AppDbContext : DbContext
     // --- H? th?ng ---
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
+    // Chat DbSets
+    public DbSet<ChatChannel> ChatChannels => Set<ChatChannel>();
+    public DbSet<ChatMember> ChatMembers => Set<ChatMember>();
+    public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<MessageReaction> MessageReactions => Set<MessageReaction>();
+    public DbSet<MessageAttachment> MessageAttachments => Set<MessageAttachment>();
     #endregion
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -41,7 +47,7 @@ public class AppDbContext : DbContext
             .StartsAt(1000)
             .IncrementsBy(1);
 
-        // T? ð?ng load t?t c? class th?c thi IEntityTypeConfiguration
+        // T? Ä‘?ng load t?t c? class th?c thi IEntityTypeConfiguration
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
 
         // Global Precision cho Decimal
@@ -59,7 +65,7 @@ public class AppDbContext : DbContext
 
         foreach (var property in decimalProperties)
         {
-            // Ch? set n?u chýa ðý?c c?u h?nh th? công trong file Configuration
+            // Ch? set n?u chÆ°a Ä‘Æ°?c c?u h?nh th? cÃ´ng trong file Configuration
             if (property.GetPrecision() == null)
             {
                 property.SetPrecision(18);
@@ -75,7 +81,7 @@ public class AppDbContext : DbContext
 
     //    foreach (var entityType in modelBuilder.Model.GetEntityTypes())
     //    {
-    //        // Ch? áp d?ng cho các Entity k? th?a BaseEntity
+    //        // Ch? Ã¡p d?ng cho cÃ¡c Entity k? th?a BaseEntity
     //        if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
     //        {
     //            setFilterMethod?.MakeGenericMethod(entityType.ClrType)

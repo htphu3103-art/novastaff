@@ -1,75 +1,64 @@
-    using Microsoft.EntityFrameworkCore;
-    using Microsoft.EntityFrameworkCore.Metadata.Builders;
-    using NovaStaff.DataLayers.Helpers;
-    using NovaStaff.Models.Enums;
-    using NovaStaff.Models.Entities;
+Ôªøusing Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using NovaStaff.DataLayers.Helpers;
+using NovaStaff.Models.Enums;
+using NovaStaff.Models.Entities;
 
-    namespace NovaStaff.DataLayers.Configurations;
+namespace NovaStaff.DataLayers.Configurations;
 
-    public class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
+public class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
+{
+    public void Configure(EntityTypeBuilder<AuditLog> builder)
     {
-        public void Configure(EntityTypeBuilder<AuditLog> builder)
+        // 1. Khai b√°o c√°c r√†ng bu·ªôc Enum
+        var actionConstraint = EnumConstraintHelper.BuildInConstraint<AuditAction>(nameof(AuditLog.Action));
+
+        // 2. C·∫•u h√¨nh b·∫£ng
+        builder.ToTable("AuditLog", b =>
         {
-            // 1. Khai b·o c·c r‡ng bu?c Enum
-            var actionConstraint = EnumConstraintHelper.BuildInConstraint<AuditAction>(nameof(AuditLog.Action));
-            const string tinyint = "tinyint";
+            b.HasCheckConstraint("CK_AuditLog_Action", actionConstraint);
+        });
 
-            // 2. C?u h?nh b?ng
-            builder.ToTable("AuditLog", b =>
-            {
-                b.HasCheckConstraint("CK_AuditLog_Action", actionConstraint);
-            });
+        // 3. Kh√≥a ch√≠nh
+        builder.HasKey(a => a.AuditID);
+        builder.Property(a => a.AuditID).UseIdentityColumn();
 
-            // 3. KhÛa chÌnh
-            builder.HasKey(a => a.AuditID);
-            builder.Property(a => a.AuditID).UseIdentityColumn();
+        // 4. C·∫•u h√¨nh c√°c c·ªôt
+        builder.Property(a => a.TableName)
+            .IsRequired()
+            .HasMaxLength(100);
 
-            // 4. C?u h?nh c·c c?t
-            builder.Property(a => a.TableName)
-                .IsRequired()
-                .HasMaxLength(100)
-                .HasColumnType("nvarchar(100)"); // ? ThÍm explicit type cho nh?t qu·n
+        builder.Property(a => a.Action)
+            .IsRequired()
+            .HasColumnType("smallint")
+            .HasDefaultValue(AuditAction.Unknown);
 
-            builder.Property(a => a.Action)
-                .IsRequired()
-                .HasColumnType(tinyint)
-                .HasDefaultValue(AuditAction.Unknown);
+        builder.Property(a => a.RecordID)
+            .HasMaxLength(50);
 
-            builder.Property(a => a.RecordID)
-                .HasMaxLength(50)                // ? Gi?i h?n l?i ó ID khÙng c?n nvarchar(max)
-                .HasColumnType("nvarchar(50)");
+        builder.Property(a => a.ChangedBy)
+            .HasMaxLength(100);
 
-            builder.Property(a => a.ChangedBy)
-                .HasMaxLength(100)
-                .HasColumnType("nvarchar(100)"); // ? ThÍm explicit type
+        builder.Property(a => a.ChangedDate)
+            .IsRequired()
+            .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-            builder.Property(a => a.ChangedDate)
-                .IsRequired()
-                .HasColumnType("datetime2")      // ? ThÍm explicit type
-                .HasDefaultValueSql("GETUTCDATE()");
+        builder.Property(a => a.IPAddress)
+            .HasMaxLength(50)
+            .IsUnicode(false)
+            .HasColumnType("varchar(50)");
 
-            builder.Property(a => a.IPAddress)
-                .HasMaxLength(50)
-                .IsUnicode(false)                // ? IP ch? l‡ ASCII, d˘ng varchar ti?t ki?m hın
-                .HasColumnType("varchar(50)");
+        builder.Property(a => a.UserAgent)
+            .HasMaxLength(500);
 
-            builder.Property(a => a.UserAgent)
-                .HasMaxLength(500)               // ? Gi?i h?n l?i ó khÙng c?n nvarchar(max)
-                .HasColumnType("nvarchar(500)");
+        // 5. Indexes
+        builder.HasIndex(a => new { a.TableName, a.ChangedDate })
+            .HasDatabaseName("IX_AuditLog_Table_Date");
 
-            // OldData, NewData gi? nvarchar(max) v? JSON cÛ th? r?t d‡i ó ˙ng r?i
+        builder.HasIndex(a => a.ChangedBy)
+            .HasDatabaseName("IX_AuditLog_ChangedBy");
 
-            // 5. Indexes
-            builder.HasIndex(a => new { a.TableName, a.ChangedDate })
-                .HasDatabaseName("IX_AuditLog_Table_Date");
-
-            builder.HasIndex(a => a.ChangedBy)
-                .HasDatabaseName("IX_AuditLog_ChangedBy");
-
-            builder.HasIndex(a => a.RecordID)
-                .HasDatabaseName("IX_AuditLog_RecordID");
-        }
+        builder.HasIndex(a => a.RecordID)
+            .HasDatabaseName("IX_AuditLog_RecordID");
     }
-
-
-
+}

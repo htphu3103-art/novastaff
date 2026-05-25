@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+ï»¿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using NovaStaff.DataLayers.Helpers;
 using NovaStaff.DataLayers.Configurations;
@@ -20,27 +20,25 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         {
             b.HasCheckConstraint("CK_Employee_Status", statusConstraint);
             b.HasCheckConstraint("CK_Employee_Gender", genderConstraint);
-            // Thêm ràng bu?c lýõng không ðý?c âm
-            b.HasCheckConstraint("CK_Employee_BaseSalary", "[BaseSalary] >= 0");
+            b.HasCheckConstraint("CK_Employee_BaseSalary", "\"BaseSalary\" >= 0");
         });
 
         builder.HasKey(e => e.EmployeeID);
         builder.Property(e => e.EmployeeID).UseIdentityColumn();
 
-        // --- C?U H?NH C?T ---
+        // --- Cáº¤U HÃŒNH Cá»˜T ---
         builder.Property(e => e.EmployeeCode)
             .IsRequired()
-            .HasMaxLength(20) // Nên gi?i h?n ð? dài cho m?
-            .HasDefaultValueSql("NEXT VALUE FOR EmployeeCodeSequence");
+            .HasMaxLength(20)
+            .HasDefaultValueSql("nextval('\"EmployeeCodeSequence\"')");
 
         builder.Property(e => e.FullName)
             .IsRequired()
-            .HasMaxLength(100)
-            .HasColumnType("nvarchar(100)");
+            .HasMaxLength(100);
 
         builder.Property(e => e.BaseSalary)
-            .HasColumnType("decimal(18,4)") // Nâng lên 4 s? th?p phân ð? tính toán chính xác
-            .HasComment("Lýõng cõ b?n hàng tháng");
+            .HasPrecision(18, 4)
+            .HasComment("LÆ°Æ¡ng cÆ¡ báº£n hÃ ng thÃ¡ng");
 
         builder.Property(e => e.Phone)
             .HasMaxLength(20);
@@ -48,7 +46,7 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         builder.Property(e => e.Address)
             .HasMaxLength(255);
 
-        // --- C?U H?NH QU?N L? TR?C TI?P (Self-Referencing) ---
+        // --- Cáº¤U HÃŒNH QUáº¢N LÃ TRá»°C TIáº¾P (Self-Referencing) ---
         builder.Property(e => e.SupervisorID)
             .HasColumnType("int");
 
@@ -63,7 +61,7 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
             .HasForeignKey(e => e.DepartmentID)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // --- INDEXES (T?i ýu cho t?m ki?m) ---
+        // --- INDEXES ---
         builder.HasIndex(e => e.EmployeeCode)
             .IsUnique();
 
@@ -75,10 +73,5 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
 
         builder.HasIndex(e => new { e.FullName, e.Status })
             .HasDatabaseName("IX_Employees_Search_NameStatus");
-
-        
     }
 }
-
-
-

@@ -1,0 +1,6 @@
+cat > ~/projects/NovaStaff/.dockerignore << 'EOF'
+**/obj
+**/bin
+**/.vs
+**/node_modules
+EOF

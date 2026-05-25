@@ -16,7 +16,7 @@ public static class EnumConstraintHelper
         var values = Enum.GetValues<TEnum>()
                          .Select(v => Convert.ToByte(v));
 
-        return $"[{columnName}] IN ({string.Join(", ", values)})";
+        return $"\"{columnName}\" IN ({string.Join(", ", values)})";
     }
 }
 

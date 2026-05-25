@@ -5,7 +5,13 @@ using NovaStaff.Models.Common;
 using NovaStaff.Models.DTOs.Department;
 using NovaStaff.Models.Entities;
 using NovaStaff.Models.Filters;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Linq.Expressions;
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace NovaStaff.DataLayers.Repositories;
 
 public class DepartmentRepository : GenericRepository<Department, int>, IDepartmentRepository
@@ -16,20 +22,6 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
     // MAPPING EXPRESSION
     // =========================================================
 
-    /// <summary>
-    /// Map Department ? DepartmentDto.
-    ///
-    /// includeHasChildren = false (default):
-    ///   B? qua subquery HasChildren — dùng cho list/paging l?n
-    ///   đ? tránh N EXISTS subquery per row gây bottleneck.
-    ///
-    /// includeHasChildren = true:
-    ///   B?t subquery EXISTS — ch? dùng khi result set nh?:
-    ///   GetById (1 row), GetChildren (F1 c?a 1 node).
-    ///
-    /// EF Core d?ch HasChildren thành EXISTS inline trong cùng câu SQL,
-    /// nhưng v?n là per-row cost ? ki?m soát ch?t qua flag này.
-    /// </summary>
     private Expression<Func<Department, DepartmentDto>> MapToDto(bool includeHasChildren = false)
     {
         return d => new DepartmentDto
@@ -44,14 +36,16 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
             ManagerName = d.Manager != null ? d.Manager.FullName : null,
 
             ParentId = _context.Departments
-                .Where(x => d.OrgNode.GetLevel() > 1 &&
-                            x.OrgNode == d.OrgNode.GetAncestor(1))
+                .Where(x => d.OrgLevel > 1 &&
+                            x.OrgLevel == d.OrgLevel - 1 &&
+                            d.OrgPath.StartsWith(x.OrgPath))
                 .Select(x => (int?)x.DepartmentID)
                 .FirstOrDefault(),
 
             HasChildren = includeHasChildren
                 ? _context.Departments
-                    .Any(x => x.OrgNode.GetAncestor(1) == d.OrgNode)
+                    .Any(x => x.OrgLevel == d.OrgLevel + 1 &&
+                              x.OrgPath.StartsWith(d.OrgPath))
                 : null
         };
     }
@@ -64,7 +58,6 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
         int departmentId,
         CancellationToken ct = default)
     {
-        // Global filter Employee (IsDeleted = 0) t? đ?ng áp d?ng
         return await _context.Employees
             .AnyAsync(e => e.DepartmentID == departmentId, ct);
     }
@@ -73,15 +66,15 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
         int departmentId,
         CancellationToken ct = default)
     {
-        var node = await _dbSet
+        var path = await _dbSet
             .Where(d => d.DepartmentID == departmentId)
-            .Select(d => d.OrgNode)
+            .Select(d => d.OrgPath)
             .FirstOrDefaultAsync(ct);
 
-        if (node == null) return false;
+        if (path == null) return false;
 
         return await _dbSet.AnyAsync(d =>
-            d.OrgNode.IsDescendantOf(node) &&
+            d.OrgPath.StartsWith(path) &&
             d.DepartmentID != departmentId, ct);
     }
 
@@ -89,20 +82,18 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
         int departmentId,
         CancellationToken ct = default)
     {
-        var node = await _dbSet
+        var dep = await _dbSet
             .Where(d => d.DepartmentID == departmentId)
-            .Select(d => d.OrgNode)
+            .Select(d => new { d.OrgPath, d.OrgLevel })
             .FirstOrDefaultAsync(ct);
 
-        if (node == null) return false;
+        if (dep == null) return false;
 
-        return await _dbSet.AnyAsync(d => d.OrgNode.GetAncestor(1) == node, ct);
+        return await _dbSet.AnyAsync(d =>
+            d.OrgLevel == dep.OrgLevel + 1 &&
+            d.OrgPath.StartsWith(dep.OrgPath), ct);
     }
 
-    /// <summary>
-    /// Repo assume normalizedCode đ? đư?c chu?n hóa b?i Service (Trim + ToUpperInvariant).
-    /// Không normalize l?i ? đây — single source of truth ? Service.
-    /// </summary>
     public async Task<bool> CodeExistsAsync(
         string normalizedCode,
         int? excludeId,
@@ -117,87 +108,129 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
     // HIERARCHY READ SUPPORT
     // =========================================================
 
-    public async Task<HierarchyId?> GetPositionAsync(
+    public async Task<string?> GetPositionAsync(
         int departmentId,
         CancellationToken ct = default)
     {
         return await _dbSet
             .Where(d => d.DepartmentID == departmentId)
-            .Select(d => d.OrgNode)
+            .Select(d => d.OrgPath)
             .FirstOrDefaultAsync(ct);
     }
 
-    public async Task<HierarchyId?> GetLastRootNodeAsync(CancellationToken ct = default)
+    public async Task<string?> GetLastRootNodeAsync(CancellationToken ct = default)
     {
-        return await _dbSet
-            .Where(d => d.OrgNode.GetLevel() == 1)
-            .OrderByDescending(d => d.OrgNode)
-            .Select(d => d.OrgNode)
-            .FirstOrDefaultAsync(ct);
+        var rootPaths = await _dbSet
+            .Where(d => d.OrgLevel == 1)
+            .Select(d => d.OrgPath)
+            .ToListAsync(ct);
+
+        if (!rootPaths.Any()) return null;
+
+        return rootPaths
+            .OrderByDescending(path =>
+            {
+                var segment = path.Split('/', StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
+                return int.TryParse(segment, out int val) ? val : 0;
+            })
+            .FirstOrDefault();
     }
 
-    public async Task<HierarchyId?> GetLastChildNodeAsync(
-        HierarchyId parentNode,
+    public async Task<string?> GetLastChildNodeAsync(
+        string parentPath,
         CancellationToken ct = default)
     {
-        return await _dbSet
-            .Where(d => d.OrgNode.GetAncestor(1) == parentNode)
-            .OrderByDescending(d => d.OrgNode)
-            .Select(d => d.OrgNode)
-            .FirstOrDefaultAsync(ct);
+        var childPaths = await _dbSet
+            .Where(d => d.OrgLevel == (short?)(parentPath.Split('/', StringSplitOptions.RemoveEmptyEntries).Length + 1) &&
+                        d.OrgPath.StartsWith(parentPath))
+            .Select(d => d.OrgPath)
+            .ToListAsync(ct);
+
+        if (!childPaths.Any()) return null;
+
+        return childPaths
+            .OrderByDescending(path =>
+            {
+                var segment = path.Split('/', StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
+                return int.TryParse(segment, out int val) ? val : 0;
+            })
+            .FirstOrDefault();
     }
 
-    /// <summary>
-    /// Sinh OrgNode m?i — t?p trung node logic t?i Repository.
-    ///
-    /// Root: 1 query (GetLastRootNodeAsync)
-    /// Child: 2 query (GetPositionAsync + GetLastChildNodeAsync)
-    ///
-    /// N?u scale l?n (10k+ departments, concurrent cao), có th? g?p thành 1 raw SQL:
-    ///   SELECT parent.OrgNode, MAX(child.OrgNode)
-    ///   FROM Departments parent
-    ///   LEFT JOIN Departments child ON child.OrgNode.GetAncestor(1) = parent.OrgNode
-    ///   WHERE parent.DepartmentID = @id
-    ///   GROUP BY parent.OrgNode
-    ///
-    /// Hi?n t?i 2 round-trip ch?p nh?n đư?c cho h? th?ng HRM t?m v?a.
-    /// </summary>
-    public async Task<(HierarchyId newNode, HierarchyId? parentNode)> GenerateNewNodeAsync(
+    public async Task<(string newNode, string? parentNode)> GenerateNewNodeAsync(
         int? parentId,
         CancellationToken ct = default)
     {
         if (parentId is null)
         {
             var lastRoot = await GetLastRootNodeAsync(ct);
-            return (HierarchyId.GetRoot().GetDescendant(lastRoot, null), null);
+            return (GetDescendant("/", lastRoot), null);
         }
 
-        var parentNode = await GetPositionAsync(parentId.Value, ct)
-            ?? throw new KeyNotFoundException($"Parent department {parentId} không t?n t?i.");
+        var parentPath = await GetPositionAsync(parentId.Value, ct)
+            ?? throw new KeyNotFoundException($"Parent department {parentId} không tồn tại.");
 
-        var lastChild = await GetLastChildNodeAsync(parentNode, ct);
-        return (parentNode.GetDescendant(lastChild, null), parentNode);
+        var lastChild = await GetLastChildNodeAsync(parentPath, ct);
+        return (GetDescendant(parentPath, lastChild), parentPath);
+    }
+
+    private static string GetDescendant(string parentPath, string? lastChildPath)
+    {
+        if (string.IsNullOrEmpty(parentPath)) parentPath = "/";
+        if (!parentPath.StartsWith("/")) parentPath = "/" + parentPath;
+        if (!parentPath.EndsWith("/")) parentPath = parentPath + "/";
+
+        if (lastChildPath != null)
+        {
+            if (!lastChildPath.StartsWith("/")) lastChildPath = "/" + lastChildPath;
+            if (!lastChildPath.EndsWith("/")) lastChildPath = lastChildPath + "/";
+        }
+
+        if (lastChildPath == null)
+        {
+            return $"{parentPath}1/";
+        }
+        else
+        {
+            var segments = lastChildPath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Length == 0)
+            {
+                return $"{parentPath}1/";
+            }
+            var lastSegment = segments[^1];
+            if (int.TryParse(lastSegment, out int lastNum))
+            {
+                int nextNum = lastNum + 1;
+                return $"{parentPath}{nextNum}/";
+            }
+            else
+            {
+                return $"{parentPath}1/";
+            }
+        }
     }
 
     // =========================================================
-    // TREE QUERY (Entity — ph?c v? mutation logic)
+    // TREE QUERY (Entity — phục vụ mutation logic)
     // =========================================================
 
     public async Task<IReadOnlyList<Department>> GetChildrenAsync(
         int parentId,
         CancellationToken ct = default)
     {
-        var parentNode = await _dbSet
+        var parentPath = await _dbSet
             .Where(d => d.DepartmentID == parentId)
-            .Select(d => d.OrgNode)
+            .Select(d => d.OrgPath)
             .FirstOrDefaultAsync(ct);
 
-        if (parentNode == null) return Array.Empty<Department>();
+        if (parentPath == null) return Array.Empty<Department>();
+
+        var parentLevel = parentPath.Split('/', StringSplitOptions.RemoveEmptyEntries).Length;
 
         return await _dbSet
             .AsNoTracking()
-            .Where(d => d.OrgNode.GetAncestor(1) == parentNode)
-            .OrderBy(d => d.OrgNode)
+            .Where(d => d.OrgLevel == parentLevel + 1 && d.OrgPath.StartsWith(parentPath))
+            .OrderBy(d => d.OrgPath)
             .ToListAsync(ct);
     }
 
@@ -205,9 +238,6 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
     // MANAGER SUPPORT
     // =========================================================
 
-    /// <summary>
-    /// Manager thư?ng qu?n l? ít ph?ng ban ? t?p nh? ? b?t HasChildren an toàn.
-    /// </summary>
     public async Task<IReadOnlyList<DepartmentDto>> GetByManagerAsync(
         int managerEmployeeId,
         CancellationToken ct = default)
@@ -215,7 +245,7 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
         return await _dbSet
             .AsNoTracking()
             .Where(d => d.ManagerEmployeeID == managerEmployeeId)
-            .OrderBy(d => d.OrgNode)
+            .OrderBy(d => d.OrgPath)
             .Select(MapToDto(includeHasChildren: true))
             .ToListAsync(ct);
     }
@@ -224,7 +254,6 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
     // DTO PROJECTION
     // =========================================================
 
-    /// <summary>GetById ? 1 row ? b?t HasChildren, không có per-row cost đáng k?.</summary>
     public async Task<DepartmentDto?> GetDtoByIdAsync(
         int id,
         CancellationToken ct = default)
@@ -236,29 +265,27 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
             .FirstOrDefaultAsync(ct);
     }
 
-    /// <summary>GetChildren (F1 c?a 1 node) ? t?p nh? ? b?t HasChildren.</summary>
     public async Task<IReadOnlyList<DepartmentDto>> GetChildrenDtoAsync(
         int parentId,
         CancellationToken ct = default)
     {
-        var parentNode = await _dbSet
+        var parentPath = await _dbSet
             .Where(d => d.DepartmentID == parentId)
-            .Select(d => d.OrgNode)
+            .Select(d => d.OrgPath)
             .FirstOrDefaultAsync(ct);
 
-        if (parentNode == null) return Array.Empty<DepartmentDto>();
+        if (parentPath == null) return Array.Empty<DepartmentDto>();
+
+        var parentLevel = parentPath.Split('/', StringSplitOptions.RemoveEmptyEntries).Length;
 
         return await _dbSet
             .AsNoTracking()
-            .Where(d => d.OrgNode.GetAncestor(1) == parentNode)
-            .OrderBy(d => d.OrgNode)
+            .Where(d => d.OrgLevel == parentLevel + 1 && d.OrgPath.StartsWith(parentPath))
+            .OrderBy(d => d.OrgPath)
             .Select(MapToDto(includeHasChildren: true))
             .ToListAsync(ct);
     }
 
-    /// <summary>
-    /// GetDescendants — paging l?n ? t?t HasChildren tránh N EXISTS subquery per row.
-    /// </summary>
     public async Task<PagedResult<DepartmentDto>> GetDescendantsDtoAsync(
     int departmentId,
     DepartmentDescendantFilter filter,
@@ -266,18 +293,18 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
     int pageSize,
     CancellationToken ct = default)
     {
-        var parentNode = await _dbSet
+        var parentPath = await _dbSet
             .Where(d => d.DepartmentID == departmentId)
-            .Select(d => d.OrgNode)
+            .Select(d => d.OrgPath)
             .FirstOrDefaultAsync(ct);
 
-        if (parentNode == null)
+        if (parentPath == null)
             return PagedResult<DepartmentDto>.Empty(pageIndex, pageSize);
 
         var query = _dbSet
             .AsNoTracking()
             .Where(d =>
-                d.OrgNode.IsDescendantOf(parentNode) &&
+                d.OrgPath.StartsWith(parentPath) &&
                 d.DepartmentID != departmentId);
 
         query = ApplyFilter(query, filter);
@@ -294,36 +321,39 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
         if (items.Count == 0)
             return PagedResult<DepartmentDto>.Empty(pageIndex, pageSize);
 
-        // ===== FIX HAS CHILDREN (SAFE EF VERSION) =====
         var ids = items.Select(x => x.Id).ToList();
 
         var nodeInfos = await _dbSet
             .Where(d => ids.Contains(d.DepartmentID))
-            .Select(d => new { d.DepartmentID, d.OrgNode })
+            .Select(d => new { d.DepartmentID, d.OrgPath, d.OrgLevel })
             .ToListAsync(ct);
 
-        var nodeValues = nodeInfos.Select(x => x.OrgNode).ToList();
-
-        var childrenNodes = await _dbSet
-            .Where(d => d.OrgNode.GetAncestor(1) != null && nodeValues.Contains(d.OrgNode.GetAncestor(1)!))
-            .Select(d => d.OrgNode.GetAncestor(1))
-            .Distinct()
-            .ToListAsync(ct);
-
-        var map = nodeInfos.ToDictionary(x => x.DepartmentID, x => x.OrgNode);
+        var nodeValues = nodeInfos.Select(x => x.OrgPath).ToList();
+        var parentLevelMap = nodeInfos.ToDictionary(x => x.OrgPath, x => x.OrgLevel);
+        
+        var hasChildrenPaths = new HashSet<string>();
+        foreach (var path in nodeValues)
+        {
+            var level = parentLevelMap[path];
+            var hasChild = await _dbSet.AnyAsync(d => d.OrgLevel == level + 1 && d.OrgPath.StartsWith(path), ct);
+            if (hasChild)
+            {
+                hasChildrenPaths.Add(path);
+            }
+        }
 
         foreach (var item in items)
         {
-            if (map.TryGetValue(item.Id, out var node))
+            var info = nodeInfos.FirstOrDefault(x => x.DepartmentID == item.Id);
+            if (info != null)
             {
-                item.HasChildren = childrenNodes.Contains(node);
+                item.HasChildren = hasChildrenPaths.Contains(info.OrgPath);
             }
         }
 
         return new PagedResult<DepartmentDto>(items, total, pageIndex, pageSize);
     }
 
-    /// <summary>GetRoots — paging ? t?t HasChildren, l? do như GetDescendants.</summary>
     public async Task<PagedResult<DepartmentDto>> GetRootsDtoAsync(
     DepartmentDescendantFilter filter,
     int pageIndex,
@@ -333,7 +363,7 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
     {
         var query = _dbSet
             .AsNoTracking()
-            .Where(d => d.OrgNode.GetLevel() == 1);
+            .Where(d => d.OrgLevel == 1);
 
         if (managerId.HasValue)
         {
@@ -352,6 +382,34 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
             .Select(MapToDto(includeHasChildren: false))
             .ToListAsync(ct);
 
+        if (items.Count > 0)
+        {
+            var ids = items.Select(x => x.Id).ToList();
+            var nodeInfos = await _dbSet
+                .Where(d => ids.Contains(d.DepartmentID))
+                .Select(d => new { d.DepartmentID, d.OrgPath })
+                .ToListAsync(ct);
+
+            var hasChildrenPaths = new HashSet<string>();
+            foreach (var info in nodeInfos)
+            {
+                var hasChild = await _dbSet.AnyAsync(d => d.OrgLevel == 2 && d.OrgPath.StartsWith(info.OrgPath), ct);
+                if (hasChild)
+                {
+                    hasChildrenPaths.Add(info.OrgPath);
+                }
+            }
+
+            foreach (var item in items)
+            {
+                var info = nodeInfos.FirstOrDefault(x => x.DepartmentID == item.Id);
+                if (info != null)
+                {
+                    item.HasChildren = hasChildrenPaths.Contains(info.OrgPath);
+                }
+            }
+        }
+
         return new PagedResult<DepartmentDto>(
             items,
             total,
@@ -364,19 +422,24 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
     // =========================================================
 
     public async Task ReparentSubtreeAsync(
-        HierarchyId oldNode,
-        HierarchyId newNode,
+        string oldPath,
+        string newPath,
         CancellationToken ct = default)
     {
-        await _context.Database.ExecuteSqlInterpolatedAsync($@"
-            UPDATE Departments
-            SET OrgNode = OrgNode.GetReparentedValue({oldNode}, {newNode})
-            WHERE OrgNode.IsDescendantOf({oldNode}) = 1
-        ", ct);
+        var oldLevel = oldPath.Split('/', StringSplitOptions.RemoveEmptyEntries).Length;
+        var newLevel = newPath.Split('/', StringSplitOptions.RemoveEmptyEntries).Length;
+        var levelOffset = newLevel - oldLevel;
+
+        await _context.Database.ExecuteSqlRawAsync(@"
+            UPDATE ""Departments""
+            SET ""OrgPath"" = {0} || SUBSTRING(""OrgPath"" FROM LENGTH({1}) + 1),
+                ""OrgLevel"" = CAST(""OrgLevel"" + {2} AS smallint)
+            WHERE ""OrgPath"" LIKE {3}
+        ", new object[] { newPath, oldPath, levelOffset, oldPath + "%" }, ct);
     }
 
     // =========================================================
-    // PRIVATE HELPERS (DRY — tránh l?p filter/sort logic)
+    // PRIVATE HELPERS
     // =========================================================
 
     private static IQueryable<Department> ApplyFilter(
@@ -406,24 +469,25 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
             (DepartmentSortField.Name, true) => query.OrderByDescending(d => d.DepartmentName),
             (DepartmentSortField.CreatedAt, false) => query.OrderBy(d => d.CreatedDate),
             (DepartmentSortField.CreatedAt, true) => query.OrderByDescending(d => d.CreatedDate),
-            (_, false) => query.OrderBy(d => d.OrgNode),
-            (_, true) => query.OrderByDescending(d => d.OrgNode)
+            (_, false) => query.OrderBy(d => d.OrgPath),
+            (_, true) => query.OrderByDescending(d => d.OrgPath)
         };
     }
 
     public async Task<List<Department>> GetManagedDepartmentsAsync(
-    int managerEmployeeId,
-    CancellationToken ct = default)
+        int managerEmployeeId,
+        CancellationToken ct = default)
     {
         return await _dbSet
             .AsNoTracking()
             .Where(d => d.ManagerEmployeeID == managerEmployeeId)
-            .OrderBy(d => d.OrgNode)
+            .OrderBy(d => d.OrgPath)
             .ToListAsync(ct);
     }
+
     public async Task<List<int>> GetDescendantIdsAsync(
-    IEnumerable<int> rootDepartmentIds,
-    CancellationToken ct = default)
+        IEnumerable<int> rootDepartmentIds,
+        CancellationToken ct = default)
     {
         var roots = rootDepartmentIds
             .Distinct()
@@ -432,22 +496,26 @@ public class DepartmentRepository : GenericRepository<Department, int>, IDepartm
         if (!roots.Any())
             return [];
 
-        var rootNodes = await _dbSet
+        var rootPaths = await _dbSet
             .Where(d => roots.Contains(d.DepartmentID))
-            .Select(d => d.OrgNode)
+            .Select(d => d.OrgPath)
             .ToListAsync(ct);
 
-        return await _dbSet
+        var allDeps = await _dbSet
             .AsNoTracking()
-            .Where(d =>
-                rootNodes.Any(root =>
-                    d.OrgNode.IsDescendantOf(root)) &&
-                !roots.Contains(d.DepartmentID))
-            .Select(d => d.DepartmentID)
-            .Distinct()
+            .Select(d => new { d.DepartmentID, d.OrgPath })
             .ToListAsync(ct);
+
+        var descendantIds = new List<int>();
+        foreach (var dep in allDeps)
+        {
+            if (roots.Contains(dep.DepartmentID)) continue;
+            if (rootPaths.Any(root => dep.OrgPath.StartsWith(root)))
+            {
+                descendantIds.Add(dep.DepartmentID);
+            }
+        }
+
+        return descendantIds;
     }
 }
-
-
-

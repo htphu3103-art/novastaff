@@ -41,9 +41,8 @@ public class DesignTimeDbContextFactory
         // 3. Configure DbContext
         // =====================================================
         optionsBuilder
-            .UseSqlServer(connectionString, x => x.UseHierarchyId())
-            .AddInterceptors(auditInterceptor);
-
+    .UseNpgsql(connectionString)
+    .AddInterceptors(auditInterceptor);
 #if DEBUG
         optionsBuilder.EnableSensitiveDataLogging();
 #endif
@@ -51,7 +50,6 @@ public class DesignTimeDbContextFactory
         return new AppDbContext(optionsBuilder.Options);
     }
 }
-
 /// <summary>
 /// Fake user context cho EF Core CLI (migration / update database)
 /// </summary>

@@ -9,26 +9,31 @@ using NovaStaff.Models.Enums;
 using NovaStaff.Models.Filters;
 using NovaStaff.Services.Interfaces;
 using System.Data;
+using NovaStaff.Shared.Cache;
 
 namespace NovaStaff.Services;
 
 public class DepartmentService : IDepartmentService
 {
     private readonly IUnitOfWork _uow;
-    private readonly IDepartmentRepository _repo;
-    private readonly IEmployeeRepository _employeeRepo; 
-    private readonly ICurrentUserService _currentUser;
+private readonly IDepartmentRepository _repo;
+private readonly IEmployeeRepository _employeeRepo;
+private readonly ICurrentUserService _currentUser;
+private readonly ICacheService _cache;
+private const string CacheKey = "departments:roots";
 
     public DepartmentService(
         IUnitOfWork uow,
         IDepartmentRepository repo,
         IEmployeeRepository employeeRepo,
-        ICurrentUserService currentUser)
+        ICurrentUserService currentUser,
+        ICacheService cache)
     {
         _uow = uow;
         _repo = repo;
         _employeeRepo = employeeRepo;
         _currentUser = currentUser;
+        _cache = cache;
     }
 
     // =========================================================
@@ -56,32 +61,38 @@ public class DepartmentService : IDepartmentService
     public async Task<PagedResult<DepartmentDto>> GetRootsAsync(
     DepartmentDescendantQuery query,
     CancellationToken ct = default)
+{
+    var role = _currentUser.GetRole();
+
+    // Manager không cache vì data khác nhau theo từng Manager
+    if (role == UserRole.Manager.ToString())
     {
-        var role = _currentUser.GetRole();
+        var employeeId = _currentUser.GetEmployeeId()
+            ?? throw new UnauthorizedAccessException(
+                "Không xác định được nhân viên.");
 
-        // Manager chỉ được xem root department mình quản lý
-        if (role == UserRole.Manager.ToString())
-        {
-            var employeeId = _currentUser.GetEmployeeId()
-                ?? throw new UnauthorizedAccessException(
-                    "Không xác định được nhân viên.");
-
-            return await _repo.GetRootsDtoAsync(
-                ToFilter(query),
-                query.PageIndex,
-                query.PageSize,
-                managerId: employeeId,
-                ct);
-        }
-
-        // HR/Admin xem toàn bộ
         return await _repo.GetRootsDtoAsync(
             ToFilter(query),
             query.PageIndex,
             query.PageSize,
-            ct: ct);
+            managerId: employeeId,
+            ct);
     }
 
+    // HR/Admin → dùng cache
+    var cached = await _cache.GetAsync<PagedResult<DepartmentDto>>(CacheKey);
+    if (cached is not null)
+        return cached;
+
+    var result = await _repo.GetRootsDtoAsync(
+        ToFilter(query),
+        query.PageIndex,
+        query.PageSize,
+        ct: ct);
+
+    await _cache.SetAsync(CacheKey, result, TimeSpan.FromMinutes(5));
+    return result;
+}
     public async Task<PagedResult<DepartmentDto>> GetDescendantsAsync(
         int departmentId,
         DepartmentDescendantQuery query,
@@ -125,7 +136,7 @@ public class DepartmentService : IDepartmentService
             {
                 DepartmentName = request.Name.Trim(),
                 Code = NormalizeCode(request.Code),
-                OrgNode = newNode,
+                OrgPath = newNode,
                 Description = request.Description?.Trim(),
                 IsActive = true,
                 ManagerEmployeeID = request.ManagerEmployeeId
@@ -138,7 +149,7 @@ public class DepartmentService : IDepartmentService
             //await _audit.LogAsync("Departments", $"NEW|{dept.DepartmentID}", AuditAction.Insert, null, request);
 
             await tx.CommitAsync(ct);
-
+            await _cache.RemoveAsync(CacheKey);
             return await _repo.GetDtoByIdAsync(dept.DepartmentID, ct)
                 ?? throw new InvalidOperationException("Failed to load created department.");
         }
@@ -173,7 +184,7 @@ public class DepartmentService : IDepartmentService
 
         _repo.Update(dept);
         await _uow.SaveChangesAsync(ct); // ← Interceptor tự ghi
-
+        await _cache.RemoveAsync(CacheKey);
         return await _repo.GetDtoByIdAsync(id, ct)
             ?? throw new InvalidOperationException("Failed to load updated department.");
     }
@@ -191,6 +202,7 @@ public class DepartmentService : IDepartmentService
 
         _repo.Delete(dept);
         await _uow.SaveChangesAsync(ct); // ← Interceptor tự ghi
+        await _cache.RemoveAsync(CacheKey);
     }
 
     // =========================================================
@@ -208,7 +220,7 @@ public class DepartmentService : IDepartmentService
             var (newNode, newParentNode) = await _repo.GenerateNewNodeAsync(newParentId, ct);
 
             if (newParentId == id ||
-                (newParentNode != null && newParentNode.IsDescendantOf(currentNode)))
+                (newParentNode != null && newParentNode.StartsWith(currentNode)))
                 throw new InvalidOperationException(
                     "Không thể move phòng ban vào chính nó hoặc vào cây con của nó.");
 
