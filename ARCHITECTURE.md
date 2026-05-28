@@ -11,7 +11,7 @@
 |---|---|---|
 | **Backend** | ASP.NET Core, C# | RESTful API, Global Exception Handling |
 | **ORM** | Entity Framework Core | Code-first, Configurations mapping riêng biệt |
-| **Database** | SQL Server | Phòng ban: **OrgPath** materialized path (string), unique index |
+| **Database** | PostgreSQL | Phòng ban: **OrgPath** materialized path (string), unique index |
 | **Frontend** | React + TypeScript | Strict mode, Modular Architecture |
 | **Networking** | Axios | Tích hợp Interceptors, Credential support (Cookies) |
 

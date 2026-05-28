@@ -1,4 +1,4 @@
-﻿// Interfaces/Repositories/IEmployeeRepository.cs
+// Interfaces/Repositories/IEmployeeRepository.cs
 using NovaStaff.Models.Entities;
 
 namespace NovaStaff.DataLayers.Interfaces.Repositories;
@@ -22,7 +22,7 @@ public interface IEmployeeRepository : IRepository<Employee, int>
     /// T?m nhân viên theo EmployeeCode — m? đ?nh danh nghi?p v? (ví d? "NV1001").
     ///
     /// EmployeeCode khác EmployeeID:
-    ///   EmployeeID   : khoá chính DB, do SQL Server t? sinh (int, identity).
+    ///   EmployeeID   : khoá chính DB, do PostgreSQL tự sinh (int, identity).
     ///   EmployeeCode : m? nghi?p v?, do sequence "EmployeeCodeSequence" sinh
     ///                  (StartsAt 1000, IncrementsBy 1 — c?u h?nh trong AppDbContext).
     ///

@@ -488,7 +488,7 @@ public class EmployeeService : IEmployeeService
         }
         catch (DbUpdateException ex)
         {
-            // SQL Server/Postgres messages vary; include outer + inner text
+            // Postgres messages vary; include outer + inner text
             // so we can reliably match constraint/column names.
             var msg = string.Join(" | ",
                 ex.Message ?? "",

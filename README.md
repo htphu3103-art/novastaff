@@ -26,13 +26,15 @@ The system is built using a modern architecture separating the backend API and f
 ### Prerequisites
 - .NET 8.0 SDK
 - Node.js (v18+) & npm
-- SQL Server
+- PostgreSQL (or Docker for `docker-compose`)
+- Redis
 
 ### Backend Setup
 1. Navigate to the root directory.
-2. Ensure connection strings are configured in `appsettings.json`.
-3. Apply migrations: `dotnet ef database update --project NovaStaff.DataLayes --startup-project NovaStaff.Api`
-4. Run the API: `dotnet run --project NovaStaff.Api`
+2. Start the database and Redis services using Docker (optional if running locally): `docker-compose up -d db redis`
+3. Ensure connection strings are configured in `NovaStaff.Api/appsettings.json`.
+4. Apply migrations: `dotnet ef database update --project NovaStaff.DataLayes --startup-project NovaStaff.Api`
+5. Run the API: `dotnet run --project NovaStaff.Api`
 
 ### Frontend Setup
 1. Navigate to the frontend directory: `cd SV22T1020320.Web`

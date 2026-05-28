@@ -1,4 +1,4 @@
-﻿// Services/Interfaces/IEmployeeService.cs
+// Services/Interfaces/IEmployeeService.cs
 using NovaStaff.Models.Common;
 using NovaStaff.Models.DTOs.Employees;
 using NovaStaff.Models.Filters;
@@ -40,7 +40,7 @@ public interface IEmployeeService
     /// Lấy thông tin nhân viên theo EmployeeCode (mã nghiệp vụ, ví dụ "NV1001").
     ///
     /// EmployeeCode khác EmployeeID:
-    ///   EmployeeID   : khoá chính DB, do SQL Server tự sinh (int identity).
+    ///   EmployeeID   : khoá chính DB, do PostgreSQL tự sinh (int identity).
     ///   EmployeeCode : mã nghiệp vụ, do sequence "EmployeeCodeSequence" sinh
     ///                  (StartsAt 1000, IncrementsBy 1).
     ///

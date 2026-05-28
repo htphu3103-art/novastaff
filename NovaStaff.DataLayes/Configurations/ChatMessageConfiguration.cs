@@ -20,7 +20,7 @@ public class ChatMessageConfiguration : IEntityTypeConfiguration<ChatMessage>
             .HasForeignKey(x => x.ChatChannelID)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Dùng Restrict để tránh multiple cascade paths trên SQL Server
+        // Dùng Restrict để tránh multiple cascade paths trên PostgreSQL
         builder.HasOne(x => x.Sender)
             .WithMany()
             .HasForeignKey(x => x.SenderUserID)
