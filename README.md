@@ -10,7 +10,7 @@ NovaStaff is a comprehensive, enterprise-grade Human Resource Management System.
 
 ## Architecture
 The system is built using a modern architecture separating the backend API and frontend SPA:
-- **Backend**: .NET Web API (`NovaStaff.Admin`), following Layered Architecture (Controllers, Services, Repositories).
+- **Backend**: .NET Web API (`NovaStaff.Api`), following Layered Architecture (Controllers, Services, Repositories).
 - **Frontend**: React application built with Vite (`SV22T1020320.Web`).
 
 ### Key Modules
@@ -31,8 +31,8 @@ The system is built using a modern architecture separating the backend API and f
 ### Backend Setup
 1. Navigate to the root directory.
 2. Ensure connection strings are configured in `appsettings.json`.
-3. Apply migrations: `dotnet ef database update --project NovaStaff.DataLayes --startup-project NovaStaff.Admin`
-4. Run the API: `dotnet run --project NovaStaff.Admin`
+3. Apply migrations: `dotnet ef database update --project NovaStaff.DataLayes --startup-project NovaStaff.Api`
+4. Run the API: `dotnet run --project NovaStaff.Api`
 
 ### Frontend Setup
 1. Navigate to the frontend directory: `cd SV22T1020320.Web`

@@ -13,7 +13,7 @@ COPY NovaStaff.Model/NovaStaff.Models.csproj NovaStaff.Model/
 COPY NovaStaff.DataLayes/NovaStaff.DataLayers.csproj NovaStaff.DataLayes/
 COPY NovaStaff.BusinessLayers/NovaStaff.BusinessLayers.csproj NovaStaff.BusinessLayers/
 COPY NovaStaff.Infrastructure/NovaStaff.Infrastructure.csproj NovaStaff.Infrastructure/
-COPY NovaStaff.Admin/NovaStaff.API.csproj NovaStaff.Admin/
+COPY NovaStaff.Api/NovaStaff.API.csproj NovaStaff.Api/
 
 COPY NovaStaff.sln .
 
@@ -27,7 +27,7 @@ COPY . .
 
 # Publish
 
-RUN dotnet publish NovaStaff.Admin/NovaStaff.API.csproj \
+RUN dotnet publish NovaStaff.Api/NovaStaff.API.csproj \
     -c Release \
     -o /app/publish \
     --no-restore \

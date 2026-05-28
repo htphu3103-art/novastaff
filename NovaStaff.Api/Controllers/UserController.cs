@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using NovaStaff.BusinessLayers.Interfaces;
 using NovaStaff.Models.DTOs.UserAuths;
 
-namespace NovaStaff.Admin.Controllers;
+namespace NovaStaff.API.Controllers;
 
 [Route("api/users")]
 [ApiController]

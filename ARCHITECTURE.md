@@ -25,7 +25,7 @@ novastaff/
 ├── NovaStaff.Model/           # Entities, DTOs, Filters, Exceptions
 ├── NovaStaff.DataLayes/       # DbContext, Configurations, Repositories, Interceptors
 ├── NovaStaff.BusinessLayers/  # Service interfaces + implementations (namespace NovaStaff.Services)
-├── NovaStaff.Admin/           # API Controllers, Program.cs, Middleware
+├── NovaStaff.Api/           # API Controllers, Program.cs, Middleware
 ├── NovaStaff.Infrastructure/
 └── Shared/NovaStaff.Shared/
 ```

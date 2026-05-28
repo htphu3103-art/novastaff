@@ -1,23 +1,23 @@
 # NovaStaff BE — AI Router
 
-**Root:** `e:\my_projects\novastaff` · **API:** `NovaStaff.Admin` · **Onboarding người:** [`ARCHITECTURE.md`](ARCHITECTURE.md) — agent **không** đọc nguyên file đó.
+**Root:** `e:\my_projects\novastaff` · **API:** `NovaStaff.Api` · **Onboarding người:** [`ARCHITECTURE.md`](ARCHITECTURE.md) — agent **không** đọc nguyên file đó.
 
 **Chỉ đọc file này trước (task BE).** ≤2 file `.cs`/task · Semble khi thiếu chi tiết · không `Grep`/`Glob` toàn solution.
 
 | Task | Mở (ưu tiên) |
 |------|----------------|
-| Auth, refresh cookie | `NovaStaff.Admin/Controllers/AuthController.cs` |
+| Auth, refresh cookie | `NovaStaff.Api/Controllers/AuthController.cs` |
 | User CRUD / role | `UserController.cs` + `NovaStaff.BusinessLayers/Services/*User*` |
 | Department tree | `DepartmentService.cs` · `DataLayes/Repositories/DepartmentRepository.cs` |
 | Employee | `EmployeeController.cs` · `EmployeeService.cs` |
 | Attendance / leave | `AttendanceController.cs` · `LeaveRequestController.cs` |
 | Payroll / task / chat | `Payrollcontroller.cs` · `WorkTaskController.cs` · `ChatController.cs` |
-| Lỗi HTTP map | `NovaStaff.Admin/Web/Middlewares/GlobalExceptionMiddleware.cs` |
+| Lỗi HTTP map | `NovaStaff.Api/Web/Middlewares/GlobalExceptionMiddleware.cs` |
 
 ## Projects
 | Folder | Vai trò |
 |--------|---------|
-| `NovaStaff.Admin` | Controllers, `Program.cs`, middleware |
+| `NovaStaff.Api` | Controllers, `Program.cs`, middleware |
 | `NovaStaff.BusinessLayers` | Services (`namespace NovaStaff.Services`) |
 | `NovaStaff.DataLayes` | DbContext, repos, `Configurations/`, `AuditInterceptor` *(typo Layes)* |
 | `NovaStaff.Model` | Entities, DTOs, `Filters/`, exceptions |
