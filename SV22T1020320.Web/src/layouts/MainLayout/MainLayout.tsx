@@ -11,6 +11,7 @@ import {
     User,
     LogOut,
     ChevronLeft,
+    AlignJustify,
     Settings,
     HelpCircle,
     Shield
@@ -31,6 +32,7 @@ const EASE_OUT = "cubic-bezier(0.25, 0.46, 0.45, 0.94)";
 const SIDEBAR_DURATION = 320; // ms — sidebar width
 const TEXT_DURATION = 150;    // ms — label fade (fast, text disappears first)
 const CONTENT_DURATION = 200; // ms — page route transition
+const MOBILE_BP = 992; // match AntD `lg` (px)
 
 const SIDEBAR_STYLES = `
     /* ── Base: all animated elements use GPU-friendly properties ─────────── */
@@ -180,16 +182,29 @@ const SIDEBAR_STYLES = `
         transition: padding ${SIDEBAR_DURATION}ms ${SPRING};
     }
 
+    /* ── Mobile overlay backdrop ─────────────────────────────────────────── */
+    .nova-mobile-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(2, 6, 23, 0.45);
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
+        z-index: 99; /* below sider (100) */
+    }
+
 `;
 
 export default function MainLayout() {
     const navigate = useNavigate()
     const location = useLocation()
     const [collapsed, setCollapsed] = useState(false)
+    const [isMobile, setIsMobile] = useState(false)
+    const [mobileOpen, setMobileOpen] = useState(false)
     const currentOutlet = useOutlet()
 
     const { user, isAuthenticated, logout } = useAuth();
     const { notification } = App.useApp();
+    const [appNotificationCount, setAppNotificationCount] = useState(0);
 
     // Smooth Intro Transition State
     const [showIntro, setShowIntro] = useState(() => sessionStorage.getItem('justLoggedIn') === 'true');
@@ -210,6 +225,7 @@ export default function MainLayout() {
 
                     // Chỉ xử lý nếu tin nhắn không thuộc kênh đang chat và không phải do chính mình gửi
                     if (!isActiveChannel && !isFromMe) {
+                        setAppNotificationCount((c) => c + 1);
                         // Tải cài đặt nâng cao từ localStorage
                         const saved = localStorage.getItem('chat_settings');
                         const settings = saved ? JSON.parse(saved) : {
@@ -326,6 +342,30 @@ export default function MainLayout() {
     }, [user, isAuthenticated, navigate]);
 
     useEffect(() => {
+        const mq = window.matchMedia(`(max-width: ${MOBILE_BP - 0.02}px)`);
+        const apply = () => {
+            const nextIsMobile = mq.matches;
+            setIsMobile(nextIsMobile);
+            if (!nextIsMobile) setMobileOpen(false);
+        };
+        apply();
+        if (typeof mq.addEventListener === 'function') mq.addEventListener('change', apply);
+        else mq.addListener(apply);
+        return () => {
+            if (typeof mq.removeEventListener === 'function') mq.removeEventListener('change', apply);
+            else mq.removeListener(apply);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!isMobile) return;
+        document.body.style.overflow = mobileOpen ? 'hidden' : '';
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [isMobile, mobileOpen]);
+
+    useEffect(() => {
         if (showIntro) {
             document.body.style.overflow = 'hidden'; // Lock scroll during intro
             sessionStorage.removeItem('justLoggedIn');
@@ -349,6 +389,23 @@ export default function MainLayout() {
         logout();
         navigate('/login');
     };
+
+    const closeMobileNav = () => setMobileOpen(false);
+
+    const chatMenuLabel = (
+        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <span>Trò chuyện</span>
+            {!collapsed && appNotificationCount > 0 && (
+                <Badge
+                    count={appNotificationCount}
+                    size="small"
+                    overflowCount={99}
+                    color="#818cf8"
+                    style={{ boxShadow: 'none' }}
+                />
+            )}
+        </span>
+    );
 
     const menuItems = [
         {
@@ -377,7 +434,7 @@ export default function MainLayout() {
                 { key: "/tasks", icon: <CheckSquare size={18} strokeWidth={1.75} />, label: "Công việc" },
                 { key: "/attendance", icon: <Calendar size={18} strokeWidth={1.75} />, label: "Chấm công" },
                 { key: "/payroll", icon: <CreditCard size={18} strokeWidth={1.75} />, label: "Bảng lương" },
-                { key: "/chat", icon: <MessageSquare size={18} strokeWidth={1.75} />, label: "Trò chuyện" },
+                { key: "/chat", icon: <MessageSquare size={18} strokeWidth={1.75} />, label: chatMenuLabel },
             ]
         }
     ];
@@ -469,13 +526,22 @@ export default function MainLayout() {
             <App>
                 <Layout style={{ minHeight: "100vh", background: "#f8fafc" }}>
 
+                    {/* Mobile overlay backdrop */}
+                    {isMobile && mobileOpen && (
+                        <div
+                            className="nova-mobile-backdrop"
+                            onClick={closeMobileNav}
+                            aria-hidden="true"
+                        />
+                    )}
+
                     {/* ── Sidebar ──────────────────────────────────────────── */}
                     <Sider
                         trigger={null}
                         collapsible
-                        collapsed={collapsed}
-                        width={200}
-                        collapsedWidth={68}
+                        collapsed={isMobile ? !mobileOpen : collapsed}
+                        width={isMobile ? 260 : 200}
+                        collapsedWidth={isMobile ? 0 : 68}
                         className="nova-sidebar"
                         style={{
                             height: '100vh',
@@ -536,7 +602,13 @@ export default function MainLayout() {
                             mode="inline"
                             selectedKeys={[location.pathname]}
                             items={menuItems}
-                            onClick={({ key }) => navigate(key)}
+                            onClick={({ key }) => {
+                                if (key === '/chat') {
+                                    setAppNotificationCount(0);
+                                }
+                                navigate(key);
+                                if (isMobile) closeMobileNav();
+                            }}
                             style={{ border: 'none', background: 'transparent', paddingTop: 4 }}
                         />
 
@@ -576,7 +648,7 @@ export default function MainLayout() {
 
                     {/* ── Main content area ─────────────────────────────────── */}
                     <Layout style={{
-                        marginLeft: collapsed ? 68 : 200,
+                        marginLeft: isMobile ? 0 : (collapsed ? 68 : 200),
                         transition: `margin-left ${SIDEBAR_DURATION}ms ${SPRING}`,
                         willChange: 'margin-left',
                         display: 'flex',
@@ -588,7 +660,7 @@ export default function MainLayout() {
                             background: "rgba(255,255,255,0.92)",
                             backdropFilter: 'blur(12px)',
                             WebkitBackdropFilter: 'blur(12px)',
-                            padding: '0 24px',
+                            padding: isMobile ? '0 12px' : '0 24px',
                             display: "flex",
                             justifyContent: "space-between",
                             alignItems: "center",
@@ -597,9 +669,12 @@ export default function MainLayout() {
                             borderBottom: '1px solid rgba(226,232,240,0.8)',
                         }}>
                             <Space size={16}>
-                                {/* Collapse toggle — single chevron that rotates */}
+                                {/* Mobile: hamburger / Desktop: collapse chevron */}
                                 <button
-                                    onClick={() => setCollapsed(!collapsed)}
+                                    onClick={() => {
+                                        if (isMobile) setMobileOpen(v => !v);
+                                        else setCollapsed(v => !v);
+                                    }}
                                     className="nova-collapse-btn"
                                     style={{
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -609,15 +684,21 @@ export default function MainLayout() {
                                         cursor: 'pointer', color: '#64748b',
                                     }}
                                 >
-                                    <span className={`nova-collapse-icon${collapsed ? ' is-collapsed' : ''}`}>
-                                        <ChevronLeft size={16} strokeWidth={2} />
-                                    </span>
+                                    {isMobile ? (
+                                        <AlignJustify size={16} strokeWidth={2} />
+                                    ) : (
+                                        <span className={`nova-collapse-icon${collapsed ? ' is-collapsed' : ''}`}>
+                                            <ChevronLeft size={16} strokeWidth={2} />
+                                        </span>
+                                    )}
                                 </button>
 
-                                <Breadcrumb
-                                    items={[{ title: <LayoutDashboard size={14} color="#94a3b8" /> }, ...breadcrumbItems]}
-                                    separator={<span style={{ color: '#cbd5e1' }}>/</span>}
-                                />
+                                {!isMobile && (
+                                    <Breadcrumb
+                                        items={[{ title: <LayoutDashboard size={14} color="#94a3b8" /> }, ...breadcrumbItems]}
+                                        separator={<span style={{ color: '#cbd5e1' }}>/</span>}
+                                    />
+                                )}
                             </Space>
 
                             <Space size={12}>
@@ -639,11 +720,15 @@ export default function MainLayout() {
                                     May 13, 2026
                                 </Button>
 
-                                <Badge count={3} size="small" offset={[-2, 2]} color="#6366f1">
+                                <Badge count={appNotificationCount} size="small" offset={[-2, 2]} color="#6366f1">
                                     <Button
                                         type="text" shape="circle"
                                         icon={<Bell size={19} strokeWidth={1.75} />}
                                         style={{ color: '#64748b' }}
+                                        onClick={() => {
+                                            setAppNotificationCount(0);
+                                            navigate('/chat');
+                                        }}
                                     />
                                 </Badge>
 

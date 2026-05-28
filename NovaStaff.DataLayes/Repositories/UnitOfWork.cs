@@ -1,6 +1,5 @@
 // DataLayers/Repositories/UnitOfWork.cs
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
 using NovaStaff.DataLayers.Interfaces;
 using NovaStaff.Models.Common;
 using System.Collections.Concurrent;
@@ -28,10 +27,30 @@ public class UnitOfWork : IUnitOfWork
     public async Task<int> SaveChangesAsync(CancellationToken ct = default)
         => await _context.SaveChangesAsync(ct);
 
-    public async Task<IDbContextTransaction> BeginTransactionAsync(
+    public async Task<TResult> ExecuteInTransactionAsync<TResult>(
+        Func<CancellationToken, Task<TResult>> operation,
         IsolationLevel level = IsolationLevel.ReadCommitted,
         CancellationToken ct = default)
-        => await _context.Database.BeginTransactionAsync(level, ct);
+    {
+        var strategy = _context.Database.CreateExecutionStrategy();
+
+        return await strategy.ExecuteAsync(async () =>
+        {
+            await using var tx = await _context.Database.BeginTransactionAsync(level, ct);
+
+            try
+            {
+                var result = await operation(ct);
+                await tx.CommitAsync(ct);
+                return result;
+            }
+            catch
+            {
+                await tx.RollbackAsync(ct);
+                throw;
+            }
+        });
+    }
 }
 
 

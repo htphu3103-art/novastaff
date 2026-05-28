@@ -1,5 +1,4 @@
 // DataLayers/Interfaces/IUnitOfWork.cs
-using Microsoft.EntityFrameworkCore.Storage;
 using NovaStaff.Models.Common;
 using System.Data;
 
@@ -12,11 +11,8 @@ public interface IUnitOfWork
 
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 
-    /// <summary>
-    /// M? transaction th? công v?i IsolationLevel tùy ch?n.
-    /// Dùng cho: HierarchyId tree operation (Serializable)
-    /// </summary>
-    Task<IDbContextTransaction> BeginTransactionAsync(
+    Task<TResult> ExecuteInTransactionAsync<TResult>(
+        Func<CancellationToken, Task<TResult>> operation,
         IsolationLevel level = IsolationLevel.ReadCommitted,
         CancellationToken ct = default);
 }

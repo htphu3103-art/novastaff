@@ -212,6 +212,19 @@ public class ChatService : IChatService
             .FirstOrDefaultAsync(m => m.ChatChannelID == channelID && m.UserID == userID);
         if (member == null) return;
 
+        // Use database time when possible to avoid clock skew
+        // (common in Docker where app/db containers may drift).
+        var provider = _db.Database.ProviderName ?? string.Empty;
+        if (provider.Contains("Npgsql", StringComparison.OrdinalIgnoreCase))
+        {
+            await _db.Database.ExecuteSqlInterpolatedAsync($@"
+UPDATE ""ChatMembers""
+SET ""LastReadAt"" = NOW()
+WHERE ""ChatChannelID"" = {channelID} AND ""UserID"" = {userID};
+");
+            return;
+        }
+
         member.LastReadAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
     }

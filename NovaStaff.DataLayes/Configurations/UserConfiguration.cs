@@ -67,7 +67,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.HasOne(u => u.Employee)
             .WithOne(e => e.User)
             .HasForeignKey<User>(u => u.EmployeeID)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
 
         // -- Indexes --
         builder.HasIndex(u => u.Username)

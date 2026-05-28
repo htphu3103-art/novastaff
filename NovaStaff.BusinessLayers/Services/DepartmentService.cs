@@ -126,11 +126,9 @@ private const string CacheKey = "departments:roots";
         await ValidateCodeUniqueAsync(request.Code, excludeId: null, ct);
         await ValidateManagerAsync(request.ManagerEmployeeId, ct);
 
-        await using var tx = await _uow.BeginTransactionAsync(IsolationLevel.Serializable, ct);
-
-        try
+        var departmentId = await _uow.ExecuteInTransactionAsync(async token =>
         {
-            var (newNode, _) = await _repo.GenerateNewNodeAsync(request.ParentId, ct);
+            var (newNode, _) = await _repo.GenerateNewNodeAsync(request.ParentId, token);
 
             var dept = new Department
             {
@@ -142,22 +140,18 @@ private const string CacheKey = "departments:roots";
                 ManagerEmployeeID = request.ManagerEmployeeId
             };
 
-            await _repo.AddAsync(dept, ct);
-            await _uow.SaveChangesAsync(ct);  // ✅ Tech Audit (Interceptor)
+            await _repo.AddAsync(dept, token);
+            await _uow.SaveChangesAsync(token);  // ✅ Tech Audit (Interceptor)
 
             // ✅ BUSINESS AUDIT
             //await _audit.LogAsync("Departments", $"NEW|{dept.DepartmentID}", AuditAction.Insert, null, request);
 
-            await tx.CommitAsync(ct);
-            await _cache.RemoveAsync(CacheKey);
-            return await _repo.GetDtoByIdAsync(dept.DepartmentID, ct)
-                ?? throw new InvalidOperationException("Failed to load created department.");
-        }
-        catch
-        {
-            await tx.RollbackAsync(ct);
-            throw;
-        }
+            return dept.DepartmentID;
+        }, IsolationLevel.Serializable, ct);
+
+        await _cache.RemoveAsync(CacheKey);
+        return await _repo.GetDtoByIdAsync(departmentId, ct)
+            ?? throw new InvalidOperationException("Failed to load created department.");
     }
 
     // =========================================================
@@ -213,27 +207,22 @@ private const string CacheKey = "departments:roots";
         var currentNode = await _repo.GetPositionAsync(id, ct)
             ?? throw new KeyNotFoundException($"Department {id} không tồn tại.");
 
-        await using var tx = await _uow.BeginTransactionAsync(IsolationLevel.Serializable, ct);
-
-        try
+        await _uow.ExecuteInTransactionAsync(async token =>
         {
-            var (newNode, newParentNode) = await _repo.GenerateNewNodeAsync(newParentId, ct);
+            var (newNode, newParentNode) = await _repo.GenerateNewNodeAsync(newParentId, token);
 
             if (newParentId == id ||
                 (newParentNode != null && newParentNode.StartsWith(currentNode)))
                 throw new InvalidOperationException(
                     "Không thể move phòng ban vào chính nó hoặc vào cây con của nó.");
 
-            await _repo.ReparentSubtreeAsync(currentNode, newNode, ct);
-            await _uow.SaveChangesAsync(ct); // ← Interceptor tự ghi
+            await _repo.ReparentSubtreeAsync(currentNode, newNode, token);
+            await _uow.SaveChangesAsync(token); // ← Interceptor tự ghi
 
-            await tx.CommitAsync(ct);
-        }
-        catch
-        {
-            await tx.RollbackAsync(ct);
-            throw;
-        }
+            return true;
+        }, IsolationLevel.Serializable, ct);
+
+        await _cache.RemoveAsync(CacheKey);
     }
 
     // =========================================================

@@ -218,7 +218,7 @@ export default function EmployeeAttendancePage() {
                     <motion.div variants={itemVariants}>
                         <Tabs
                             type="card"
-                            destroyInactiveTabPane={true}
+                            destroyOnHidden={true}
                             items={[
                                 {
                                     key: '1',
@@ -321,7 +321,7 @@ export default function EmployeeAttendancePage() {
                                 }}
                             />
                             <div style={{ marginTop: 16 }}>
-                                <Space direction="vertical" size={4}>
+                                <Space orientation="vertical" size={4}>
                                     <Text strong>Chú thích:</Text>
                                     <Space><div style={{ width: 8, height: 8, borderRadius: '50%', background: '#52c41a' }} /> Đúng giờ</Space>
                                     <Space><div style={{ width: 8, height: 8, borderRadius: '50%', background: '#faad14' }} /> Muộn / Sớm</Space>

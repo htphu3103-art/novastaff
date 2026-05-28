@@ -98,12 +98,12 @@ export const LeaveRequestTable: React.FC<LeaveRequestTableProps> = ({
             key: 'time',
             width: 170,
             render: (_: any, record: any) => record.isSkeleton ? (
-                <Space direction="vertical" size={0}>
+                <Space orientation="vertical" size={0}>
                     <Skeleton.Input active size="small" style={{ width: 150, height: 16 }} />
                     <Skeleton.Input active size="small" style={{ width: 100, height: 12 }} />
                 </Space>
             ) : (
-                <Space direction="vertical" size={0}>
+                <Space orientation="vertical" size={0}>
                     <Text style={{ fontSize: 13 }}>{dayjs(record.fromDate).format('DD/MM/YYYY')} - {dayjs(record.toDate).format('DD/MM/YYYY')}</Text>
                     <Text type="secondary" style={{ fontSize: 12 }}>Tổng: {record.totalDays} ngày</Text>
                 </Space>

@@ -1,0 +1,16 @@
+{
+  "name": "novastaff-mcp",
+  "version": "0.0.0",
+  "private": true,
+  "devDependencies": {
+    "pointa-server": "*"
+  },
+  "scripts": {
+    "mcp:install": "npm install",
+    "mcp:pointa": "npx -y pointa-server",
+    "mcp:semble": "uvx --from \"semble[mcp]\" semble",
+    "mcp:start": "npm run mcp:pointa & npm run mcp:semble",
+    "mcp:run:ps": "powershell -ExecutionPolicy Bypass -File ./scripts/run-mcp.ps1",
+    "mcp:run:sh": "bash ./scripts/run-mcp.sh"
+  }
+}

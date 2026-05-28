@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { Row, Col, Typography, Drawer, Space, Tag, Divider, Descriptions, Spin, App, Avatar } from "antd";
+import { Row, Col, Typography, Drawer, Space, Tag, Divider, Descriptions, Spin, App, Avatar, Grid } from "antd";
 import { InfoCircleOutlined, UserOutlined, CalendarOutlined, FlagOutlined } from "@ant-design/icons";
 import { WorkTaskDto, COLUMNS } from "../types";
 import { taskApi } from "../api/taskApi";
 import KanbanColumn from "../components/KanbanColumn";
 
 const { Title, Text } = Typography;
+const { useBreakpoint } = Grid;
 
 // Helper: Map chuỗi status từ Backend ("Todo", "InProgress", "Done") sang key UI ("todo", "inprogress", "done")
 const statusToUiKey = (status: string): string => {
@@ -21,6 +22,8 @@ export default function EmployeeTaskPage({ user }: any) {
     const { message } = App.useApp();
     const [tasks, setTasks] = useState<WorkTaskDto[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const screens = useBreakpoint();
+    const isMobile = !screens.md;
 
     const [selectedTask, setSelectedTask] = useState<WorkTaskDto | null>(null);
     const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState(false);
@@ -74,7 +77,7 @@ export default function EmployeeTaskPage({ user }: any) {
             <Spin spinning={isLoading} description="Đang tải công việc...">
                 <Row gutter={16}>
                     {COLUMNS.map(col => (
-                        <Col span={8} key={col.key}>
+                        <Col xs={24} md={8} key={col.key} style={isMobile ? { marginBottom: 16 } : undefined}>
                             <KanbanColumn
                                 title={col.label}
                                 status={col.key}
@@ -92,7 +95,7 @@ export default function EmployeeTaskPage({ user }: any) {
             <Drawer
                 title={<span><InfoCircleOutlined /> Chi tiết công việc</span>}
                 placement="right"
-                styles={{ wrapper: { width: 450 } }}
+                styles={{ wrapper: { width: isMobile ? '100%' : 450 } }}
                 onClose={() => setIsDetailDrawerOpen(false)}
                 open={isDetailDrawerOpen}
             >

@@ -72,7 +72,7 @@ export const LeaveRequestModal = ({ open, onCancel, onSuccess }: LeaveRequestMod
             onCancel={onCancel}
             onOk={handleOk}
             confirmLoading={loading}
-            destroyOnClose
+            destroyOnHidden
             width={600}
             okText="Gửi đơn"
             cancelText="Hủy bỏ"

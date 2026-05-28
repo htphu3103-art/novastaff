@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Layout, Avatar, Badge, Input, Button, Space, Typography, message, Alert, Modal, Form, Input as AntInput, Select, List, Skeleton, Switch } from 'antd';
+import { Layout, Avatar, Badge, Input, Button, Space, Typography, message, Alert, Modal, Form, Input as AntInput, Select, List, Skeleton, Switch, App } from 'antd';
 import {
     SearchOutlined,
     PaperClipOutlined,
@@ -15,24 +15,28 @@ import { signalRService } from './services/signalRService';
 import { ChannelDto, MessageDto, MemberDto } from './types/chat';
 import { useAuth } from '../../contexts/AuthContext';
 
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const { Sider, Content } = Layout;
 const { Text } = Typography;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface Channel {
+interface ChatListItemBase {
     id: number;
-    name: string;
     lastMsg: string;
     unread: number;
+}
+
+interface Channel extends ChatListItemBase {
+    id: number;
+    name: string;
     color: string;
     bg: string;
     type: 'Group' | 'Direct';
 }
 
-interface DirectMessage {
+interface DirectMessage extends ChatListItemBase {
     id: number;
     name: string;
     initials: string;
@@ -74,15 +78,32 @@ const formatTime = (isoString: string): string => {
     return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
 };
 
+const normalizeChannelId = (value: number | string | null | undefined): number =>
+    Number(value ?? 0);
+
 const mapChannelDtoToChannel = (dto: ChannelDto): Channel => ({
-    id: dto.chatChannelID,
+    id: normalizeChannelId(dto.chatChannelID),
     name: dto.name,
     lastMsg: dto.lastMessage?.content || '',
-    unread: dto.unreadCount,
+    unread: Number(dto.unreadCount ?? 0) || 0,
     color: '#185FA5',
     bg: '#E6F1FB',
     type: dto.type,
 });
+
+const mapChannelDtoToDirect = (dto: ChannelDto): DirectMessage => {
+    const { color, bg } = getColorForUser(dto.name.substring(0, 2).toUpperCase());
+    return {
+        id: normalizeChannelId(dto.chatChannelID),
+        name: dto.name,
+        initials: dto.name.substring(0, 2).toUpperCase(),
+        color,
+        bg,
+        online: false,
+        lastMsg: dto.lastMessage?.content || '',
+        unread: Number(dto.unreadCount ?? 0) || 0,
+    };
+};
 
 const mapMessageDtoToMessage = (dto: MessageDto, currentUserId?: number): Message => {
     const { color, bg } = getColorForUser(dto.senderInitials);
@@ -97,6 +118,46 @@ const mapMessageDtoToMessage = (dto: MessageDto, currentUserId?: number): Messag
         time: formatTime(dto.sentAt),
         reactions: dto.reactions.map(r => ({ emoji: r.emoji, count: r.count })),
     };
+};
+
+const applyIncomingMessageToList = <T extends ChatListItemBase>(
+    list: T[],
+    msg: MessageDto,
+    activeChannelId: number | null
+): T[] => {
+    const messageChannelId = normalizeChannelId(msg.chatChannelID);
+    const activeId = normalizeChannelId(activeChannelId);
+    const isActive = messageChannelId === activeId;
+    return list.map(item => {
+        if (normalizeChannelId(item.id) !== messageChannelId) return item;
+        return {
+            ...item,
+            lastMsg: msg.content,
+            unread: isActive ? 0 : (Number(item.unread ?? 0) || 0) + 1,
+        };
+    });
+};
+
+const mergeDirectsFromApi = (
+    prevDirects: DirectMessage[],
+    apiDirects: DirectMessage[],
+    activeChannelId: number | null
+): DirectMessage[] => {
+    const prevById = new Map(prevDirects.map(item => [normalizeChannelId(item.id), item]));
+    const activeId = normalizeChannelId(activeChannelId);
+
+    return apiDirects.map(apiItem => {
+        const channelId = normalizeChannelId(apiItem.id);
+        const prevItem = prevById.get(channelId);
+        const isActive = channelId === activeId;
+
+        return {
+            ...apiItem,
+            id: channelId,
+            unread: isActive ? 0 : Number(prevItem?.unread ?? apiItem.unread ?? 0) || 0,
+            lastMsg: prevItem?.lastMsg ?? apiItem.lastMsg ?? '',
+        };
+    });
 };
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
@@ -151,15 +212,15 @@ const MessageBubble: React.FC<{ msg: Message; currentUserId?: number }> = ({ msg
     // Tự động phát hiện URL và chuyển đổi thành thẻ <a> click được
     const renderMessageText = (text: string) => {
         if (!text) return null;
-        
+
         // Phát hiện URL bắt đầu bằng http://, https:// hoặc www.
         const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
         const parts = text.split(urlRegex);
-        
+
         if (parts.length === 1) {
             return text;
         }
-        
+
         return parts.map((part, index) => {
             if (part.match(urlRegex)) {
                 let href = part;
@@ -257,14 +318,16 @@ let cachedMessages: { [channelId: number]: Message[] } = {};
 const ChatPage: React.FC = () => {
     const { user } = useAuth();
     const location = useLocation();
+    const navigate = useNavigate();
+    const { notification } = App.useApp();
     const [activeChannelId, setActiveChannelId] = useState<number | null>(() => cachedActiveChannelId);
     const [activeChannelType, setActiveChannelType] = useState<'Group' | 'Direct' | null>(() => cachedActiveChannelType);
     const [channels, setChannels] = useState<Channel[]>(() => cachedChannels || []);
     const [directs, setDirects] = useState<DirectMessage[]>(() => cachedDirects || []);
-    const [members, setMembers] = useState<MemberDto[]>(() => 
+    const [members, setMembers] = useState<MemberDto[]>(() =>
         activeChannelId && cachedMembers[activeChannelId] ? cachedMembers[activeChannelId] : []
     );
-    const [messages, setMessages] = useState<Message[]>(() => 
+    const [messages, setMessages] = useState<Message[]>(() =>
         activeChannelId && cachedMessages[activeChannelId] ? cachedMessages[activeChannelId] : []
     );
     const [inputValue, setInputValue] = useState('');
@@ -293,15 +356,19 @@ const ChatPage: React.FC = () => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const activeChannelIdRef = useRef<number | null>(activeChannelId);
+    const channelsRef = useRef<Channel[]>(cachedChannels || []);
+    const directsRef = useRef<DirectMessage[]>(cachedDirects || []);
     const sentMessageIdsRef = useRef<Set<number>>(new Set());
 
     // Sync state updates to cache reactively
     useEffect(() => {
         cachedChannels = channels;
+        channelsRef.current = channels;
     }, [channels]);
 
     useEffect(() => {
         cachedDirects = directs;
+        directsRef.current = directs;
     }, [directs]);
 
     useEffect(() => {
@@ -336,7 +403,7 @@ const ChatPage: React.FC = () => {
                 // Tự động suy luận Type bằng cách tìm trong danh sách kênh / DM hiện tại
                 const isGroup = channels.some(c => c.id === parsedId);
                 const isDirect = directs.some(d => d.id === parsedId);
-                
+
                 if (isGroup) {
                     setActiveChannelId(parsedId);
                     setActiveChannelType('Group');
@@ -353,7 +420,7 @@ const ChatPage: React.FC = () => {
 
     const activeChannel = React.useMemo(() => {
         if (!activeChannelId || !activeChannelType) return null;
-        
+
         if (activeChannelType === 'Group') {
             const channel = channels.find(c => c.id === activeChannelId);
             if (channel) return channel;
@@ -380,18 +447,20 @@ const ChatPage: React.FC = () => {
         let unsubscribeReceiveMessage: (() => void) | null = null;
         let unsubscribeReconnecting: (() => void) | null = null;
         let unsubscribeReconnected: (() => void) | null = null;
-        
+
         const setupSignalR = async () => {
             try {
                 // MUST register event handlers BEFORE starting connection
                 unsubscribeReceiveMessage = signalRService.onReceiveMessage((msg: MessageDto) => {
                     const currentActiveId = activeChannelIdRef.current;
-                    
+                    const isActive = normalizeChannelId(msg.chatChannelID) === normalizeChannelId(currentActiveId);
+                    const isFromMe = msg.senderUserID === currentUserId;
+
                     // Only process message if it's for the current channel
-                    if (msg.chatChannelID === currentActiveId) {
+                    if (normalizeChannelId(msg.chatChannelID) === normalizeChannelId(currentActiveId)) {
                         // Kiểm tra xem tin nhắn này có phải do chính tab này vừa gửi (đã update optimistic) không
                         const isDuplicate = sentMessageIdsRef.current.has(msg.chatMessageID);
-                        
+
                         if (!isDuplicate) {
                             const newMsg = mapMessageDtoToMessage(msg);
                             setMessages(prev => {
@@ -400,34 +469,76 @@ const ChatPage: React.FC = () => {
                                 return [...prev, newMsg];
                             });
                         }
-                        
+
                         // Dọn dẹp ID khỏi Set để tránh rác bộ nhớ (vì SignalR đã echo về rồi)
                         sentMessageIdsRef.current.delete(msg.chatMessageID);
 
                         // Đồng bộ đánh dấu đã đọc lên backend ngay lập tức vì người dùng đang mở sẵn kênh này
-                        chatApi.markRead(currentActiveId).catch(err => {
-                            console.error('Error marking live message as read:', err);
+                        if (currentActiveId != null) {
+                            chatApi.markRead(currentActiveId).catch(err => {
+                                console.error('Error marking live message as read:', err);
+                            });
+                        }
+                    }
+
+                    // Update unread/last message consistently for Group + Direct lists
+                    setChannels(prev => applyIncomingMessageToList(prev, msg, currentActiveId));
+                    setDirects(prev => {
+                        const exists = prev.some(d => Number(d.id) === Number(msg.chatChannelID));
+                        if (!exists) return prev;
+
+                        return prev.map(d =>
+                            Number(d.id) === Number(msg.chatChannelID)
+                                ? {
+                                    ...d,
+                                    lastMsg: msg.content,
+                                    unread: isActive ? 0 : (Number(d.unread ?? 0) || 0) + 1,
+                                }
+                                : d
+                        );
+                    });
+
+                    // Message may belong to a newly-created channel that this tab hasn't loaded yet.
+                    const incomingChannelId = normalizeChannelId(msg.chatChannelID);
+                    const isKnownChannel =
+                        channelsRef.current.some(c => normalizeChannelId(c.id) === incomingChannelId) ||
+                        directsRef.current.some(d => normalizeChannelId(d.id) === incomingChannelId);
+                    if (!isKnownChannel) {
+                        chatApi.getChannels().then(allChannels => {
+                            const groupChannels = allChannels
+                                .filter(c => c.type === 'Group')
+                                .map(mapChannelDtoToChannel)
+                                .map(c => c.id === activeChannelIdRef.current ? { ...c, unread: 0 } : c);
+                            setChannels(groupChannels);
+
+                            const mappedDirects = allChannels
+                                .filter(c => c.type === 'Direct')
+                                .map(mapChannelDtoToDirect);
+                            setDirects(prev => mergeDirectsFromApi(prev, mappedDirects, activeChannelIdRef.current));
+                        }).catch(err => {
+                            console.error('Error syncing channels for incoming message:', err);
                         });
                     }
-                    
-                    // Update channels sidebar
-                    setChannels(prev => prev.map(c => {
-                        if (c.id === msg.chatChannelID) {
-                            return {
-                                ...c,
-                                lastMsg: msg.content,
-                                unread: msg.chatChannelID === currentActiveId ? 0 : c.unread + 1
-                            };
-                        }
-                        return c;
-                    }));
+
+                    // Toast notification when message arrives (not active channel, not from me)
+                    if (!isActive && !isFromMe) {
+                        notification.open({
+                            message: `Tin nhắn mới từ ${msg.senderName}`,
+                            description: msg.content,
+                            placement: 'topRight',
+                            duration: 4.5,
+                            onClick: () => {
+                                navigate(`/chat?channelId=${msg.chatChannelID}`);
+                            },
+                        });
+                    }
                 });
-                
+
                 // Listen for reconnection events
                 unsubscribeReconnecting = signalRService.onReconnecting(() => {
                     setConnectionStatus('reconnecting');
                 });
-                
+
                 unsubscribeReconnected = signalRService.onReconnected(() => {
                     setConnectionStatus('connected');
                     // Reload messages after reconnection to catch any missed messages
@@ -443,15 +554,15 @@ const ChatPage: React.FC = () => {
 
                 await signalRService.connect();
                 setConnectionStatus('connected');
-                
+
             } catch (error) {
                 console.error('SignalR connection error:', error);
                 setConnectionStatus('disconnected');
             }
         };
-        
+
         setupSignalR();
-        
+
         return () => {
             unsubscribeReceiveMessage?.();
             unsubscribeReconnecting?.();
@@ -469,29 +580,20 @@ const ChatPage: React.FC = () => {
                 } else {
                     setIsSyncing(true);
                 }
-                
+
                 // Chỉ gọi 1 API getChannels() rồi filter client-side
                 const allChannels = await chatApi.getChannels();
-                
+
                 const groupChannels = allChannels
                     .filter(c => c.type === 'Group')
                     .map(mapChannelDtoToChannel)
                     .map(c => c.id === activeChannelIdRef.current ? { ...c, unread: 0 } : c);
                 setChannels(groupChannels);
-                
-                const directChannels = allChannels.filter(c => c.type === 'Direct');
-                const mappedDirects = directChannels.map(d => {
-                    const { color, bg } = getColorForUser(d.name.substring(0, 2).toUpperCase());
-                    return {
-                        id: d.chatChannelID,
-                        name: d.name,
-                        initials: d.name.substring(0, 2).toUpperCase(),
-                        color,
-                        bg,
-                        online: false, // TODO: Get from members API
-                    };
-                });
-                setDirects(mappedDirects);
+
+                const mappedDirects = allChannels
+                    .filter(c => c.type === 'Direct')
+                    .map(mapChannelDtoToDirect);
+                setDirects(prev => mergeDirectsFromApi(prev, mappedDirects, activeChannelIdRef.current));
             } catch (error) {
                 message.error('Không thể tải dữ liệu chat');
                 console.error('Error loading chat data:', error);
@@ -505,10 +607,55 @@ const ChatPage: React.FC = () => {
         chatApi.getUsersLookup().then(setUsersLookup).catch(console.error);
     }, []);
 
+    // Fallback: refresh unread counts periodically (useful when SignalR/WebSocket is unreliable in Docker/proxy)
+    useEffect(() => {
+        let disposed = false;
+        const refresh = async () => {
+            try {
+                const allChannels = await chatApi.getChannels();
+                if (disposed) return;
+
+                const groupChannels = allChannels
+                    .filter(c => c.type === 'Group')
+                    .map(mapChannelDtoToChannel)
+                    .map(c => c.id === activeChannelIdRef.current ? { ...c, unread: 0 } : c);
+                setChannels(groupChannels);
+
+                const mappedDirects = allChannels
+                    .filter(c => c.type === 'Direct')
+                    .map(mapChannelDtoToDirect);
+                setDirects(prev => mergeDirectsFromApi(prev, mappedDirects, activeChannelIdRef.current));
+            } catch {
+                // ignore – best-effort refresh
+            }
+        };
+
+        const interval = setInterval(refresh, 15000);
+        const onFocus = () => refresh();
+        window.addEventListener('focus', onFocus);
+
+        return () => {
+            disposed = true;
+            clearInterval(interval);
+            window.removeEventListener('focus', onFocus);
+        };
+    }, []);
+
+    // Normalize cached directs after HMR / schema changes
+    useEffect(() => {
+        setDirects(prev =>
+            (prev || []).map(d => ({
+                ...d,
+                lastMsg: d.lastMsg ?? '',
+                unread: Number(d.unread ?? 0) || 0,
+            }))
+        );
+    }, []);
+
     // Join channel when activeChannelId or connectionStatus changes
     useEffect(() => {
         if (!activeChannelId || connectionStatus !== 'connected') return;
-        
+
         const joinChannel = async () => {
             try {
                 await signalRService.joinChannel(activeChannelId);
@@ -522,12 +669,18 @@ const ChatPage: React.FC = () => {
     // Load messages when channel changes
     useEffect(() => {
         if (!activeChannelId) return;
-        
+
         // Cập nhật UX lập tức: Xóa số thông báo (unread) khi người dùng click vào kênh
-        setChannels(prev => prev.map(c => 
-            c.id === activeChannelId ? { ...c, unread: 0 } : c
-        ));
-        
+        if (activeChannelType === 'Group') {
+            setChannels(prev => prev.map(c =>
+                c.id === activeChannelId ? { ...c, unread: 0 } : c
+            ));
+        } else if (activeChannelType === 'Direct') {
+            setDirects(prev => prev.map(d =>
+                d.id === activeChannelId ? { ...d, unread: 0 } : d
+            ));
+        }
+
         const loadMessages = async () => {
             const hasCache = !!cachedMessages[activeChannelId];
             try {
@@ -545,12 +698,12 @@ const ChatPage: React.FC = () => {
                 const mappedMessages = result.messages.map(mapMessageDtoToMessage);
                 setMessages(mappedMessages);
                 setMembers(membersData);
-                
+
                 // Force cuộn xuống tin nhắn mới nhất (dưới cùng) ngay khi load xong kênh
                 setTimeout(() => {
                     messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
                 }, 50);
-                
+
                 // Mark as read - fire-and-forget, không await để không block UI
                 chatApi.markRead(activeChannelId).catch(err => {
                     console.error('Error marking as read:', err);
@@ -564,7 +717,7 @@ const ChatPage: React.FC = () => {
             }
         };
         loadMessages();
-    }, [activeChannelId]);
+    }, [activeChannelId, activeChannelType]);
 
     useEffect(() => {
         const container = messagesContainerRef.current;
@@ -578,7 +731,7 @@ const ChatPage: React.FC = () => {
     const handleSend = async () => {
         const text = inputValue.trim();
         if (!text || !activeChannelId) return;
-        
+
         // Optimistic UI
         const tempId = Date.now();
         const optimisticMsg: Message = {
@@ -594,12 +747,12 @@ const ChatPage: React.FC = () => {
         setMessages(prev => [...prev, optimisticMsg]);
         setChannels(prev => prev.map(c => c.id === activeChannelId ? { ...c, lastMsg: text } : c));
         setInputValue('');
-        
+
         try {
             const messageDto = await chatApi.sendMessage(activeChannelId, { content: text });
             const newMsg = mapMessageDtoToMessage(messageDto);
             sentMessageIdsRef.current.add(messageDto.chatMessageID); // Đánh dấu ID đã được xử lý ở tab này
-            
+
             setMessages(prev => {
                 // Nếu SignalR đã add message này nhanh hơn tốc độ API trả về,
                 // ta chỉ cần xóa bỏ cái message ảo (tempId) đi.
@@ -755,7 +908,13 @@ const ChatPage: React.FC = () => {
                                 </Avatar>
                                 <OnlineDot online={dm.online} />
                             </div>
-                            <Text style={{ fontSize: 13 }}>{dm.name}</Text>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <Text strong style={{ fontSize: 13, display: 'block' }}>{dm.name}</Text>
+                                <Text type="secondary" ellipsis style={{ fontSize: 11, width: 150 }}>{dm.lastMsg}</Text>
+                            </div>
+                            {dm.unread > 0 && (
+                                <Badge count={dm.unread} size="small" />
+                            )}
                         </div>
                     );
                 })}
@@ -796,8 +955,8 @@ const ChatPage: React.FC = () => {
                                 <div>
                                     <Text strong style={{ fontSize: 15, display: 'block' }}>{activeChannel?.name}</Text>
                                     <Text type="secondary" style={{ fontSize: 12 }}>
-                                        {activeChannel?.type === 'Direct' 
-                                            ? 'Trò chuyện 1-1 trực tuyến' 
+                                        {activeChannel?.type === 'Direct'
+                                            ? 'Trò chuyện 1-1 trực tuyến'
                                             : `${(members || []).length} thành viên · kênh chung`
                                         }
                                     </Text>
@@ -817,77 +976,77 @@ const ChatPage: React.FC = () => {
                                 {activeChannel?.type === 'Group' && (
                                     <Button icon={<UserAddOutlined />} size="small" type="text" onClick={() => setIsAddMemberModalOpen(true)} />
                                 )}
-                                 <Button icon={<TeamOutlined />} size="small" type="text" onClick={() => setIsMembersListModalOpen(true)} />
-                                <Button 
-                                    icon={<SettingOutlined />} 
-                                    size="small" 
-                                    type="text" 
-                                    onClick={() => setIsSettingsModalOpen(true)} 
+                                <Button icon={<TeamOutlined />} size="small" type="text" onClick={() => setIsMembersListModalOpen(true)} />
+                                <Button
+                                    icon={<SettingOutlined />}
+                                    size="small"
+                                    type="text"
+                                    onClick={() => setIsSettingsModalOpen(true)}
                                 />
                             </div>
                         </div>
 
-                {/* Messages */}
-                <div 
-                    key={activeChannelId || 'no-channel'} 
-                    ref={messagesContainerRef} 
-                    className="chat-scroll-area fade-in-up" 
-                    style={{ flex: 1, padding: '20px 24px', background: '#fff' }}
-                >
-                    {messagesLoading ? (
-                        <ChatSkeleton />
-                    ) : (
-                        <>
-                            <div style={{
-                                textAlign: 'center', fontSize: 11, color: '#bbb',
-                                marginBottom: 16, position: 'relative',
+                        {/* Messages */}
+                        <div
+                            key={activeChannelId || 'no-channel'}
+                            ref={messagesContainerRef}
+                            className="chat-scroll-area fade-in-up"
+                            style={{ flex: 1, padding: '20px 24px', background: '#fff' }}
+                        >
+                            {messagesLoading ? (
+                                <ChatSkeleton />
+                            ) : (
+                                <>
+                                    <div style={{
+                                        textAlign: 'center', fontSize: 11, color: '#bbb',
+                                        marginBottom: 16, position: 'relative',
+                                    }}>
+                                        <span style={{
+                                            background: '#fff', padding: '0 10px',
+                                            position: 'relative', zIndex: 1,
+                                        }}>
+                                            Hôm nay
+                                        </span>
+                                        <div style={{
+                                            position: 'absolute', top: '50%', left: 0, right: 0,
+                                            height: '0.5px', background: '#ebebeb', zIndex: 0,
+                                        }} />
+                                    </div>
+
+                                    {(messages || []).map(msg => (
+                                        <MessageBubble key={msg.id} msg={msg} currentUserId={currentUserId} />
+                                    ))}
+                                    <div ref={messagesEndRef} />
+                                </>
+                            )}
+                        </div>
+
+                        {/* Input */}
+                        <div style={{ padding: '16px 24px', borderTop: '1px solid #e2e8f0', background: '#fff' }}>
+                            <div className="input-focus-ring" style={{
+                                display: 'flex', alignItems: 'center', gap: 8,
+                                border: '1px solid #cbd5e1', borderRadius: 12,
+                                padding: '8px 12px', background: '#f8fafc',
                             }}>
-                                <span style={{
-                                    background: '#fff', padding: '0 10px',
-                                    position: 'relative', zIndex: 1,
-                                }}>
-                                    Hôm nay
-                                </span>
-                                <div style={{
-                                    position: 'absolute', top: '50%', left: 0, right: 0,
-                                    height: '0.5px', background: '#ebebeb', zIndex: 0,
-                                }} />
+                                <Button icon={<PaperClipOutlined />} type="text" size="small" style={{ color: '#64748b' }} />
+                                <Input
+                                    variant="borderless"
+                                    placeholder={`Nhắn tin tới #${activeChannel?.name}...`}
+                                    style={{ flex: 1, fontSize: 14, background: 'transparent', padding: 0 }}
+                                    value={inputValue}
+                                    onChange={e => setInputValue(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                />
+                                <Button icon={<SmileOutlined />} type="text" size="small" style={{ color: '#64748b' }} />
+                                <Button
+                                    type="primary"
+                                    icon={<SendOutlined />}
+                                    size="middle"
+                                    onClick={handleSend}
+                                    style={{ borderRadius: 8, boxShadow: '0 2px 4px rgba(24, 95, 165, 0.2)' }}
+                                />
                             </div>
-
-                            {(messages || []).map(msg => (
-                                <MessageBubble key={msg.id} msg={msg} currentUserId={currentUserId} />
-                            ))}
-                            <div ref={messagesEndRef} />
-                        </>
-                    )}
-                </div>
-
-                {/* Input */}
-                <div style={{ padding: '16px 24px', borderTop: '1px solid #e2e8f0', background: '#fff' }}>
-                    <div className="input-focus-ring" style={{
-                        display: 'flex', alignItems: 'center', gap: 8,
-                        border: '1px solid #cbd5e1', borderRadius: 12,
-                        padding: '8px 12px', background: '#f8fafc',
-                    }}>
-                        <Button icon={<PaperClipOutlined />} type="text" size="small" style={{ color: '#64748b' }} />
-                        <Input
-                            variant="borderless"
-                            placeholder={`Nhắn tin tới #${activeChannel?.name}...`}
-                            style={{ flex: 1, fontSize: 14, background: 'transparent', padding: 0 }}
-                            value={inputValue}
-                            onChange={e => setInputValue(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                        />
-                        <Button icon={<SmileOutlined />} type="text" size="small" style={{ color: '#64748b' }} />
-                        <Button
-                            type="primary"
-                            icon={<SendOutlined />}
-                            size="middle"
-                            onClick={handleSend}
-                            style={{ borderRadius: 8, boxShadow: '0 2px 4px rgba(24, 95, 165, 0.2)' }}
-                        />
-                    </div>
-                </div>
+                        </div>
                     </>
                 )}
             </Content>
@@ -1028,29 +1187,20 @@ const ChatPage: React.FC = () => {
                         message.success('Đã tạo cuộc hội thoại trực tiếp!');
                         setIsCreateDirectModalOpen(false);
                         setSelectedDirectUserId(null);
-                        
+
                         // Reload and map channels
                         const allChannels = await chatApi.getChannels();
-                        
+
                         const groupChannels = allChannels
                             .filter(c => c.type === 'Group')
                             .map(mapChannelDtoToChannel);
                         setChannels(groupChannels);
-                        
-                        const directChannels = allChannels.filter(c => c.type === 'Direct');
-                        const mappedDirects = directChannels.map(d => {
-                            const { color, bg } = getColorForUser(d.name.substring(0, 2).toUpperCase());
-                            return {
-                                id: d.chatChannelID,
-                                name: d.name,
-                                initials: d.name.substring(0, 2).toUpperCase(),
-                                color,
-                                bg,
-                                online: false,
-                            };
-                        });
-                        setDirects(mappedDirects);
-                        
+
+                        const mappedDirects = allChannels
+                            .filter(c => c.type === 'Direct')
+                            .map(mapChannelDtoToDirect);
+                        setDirects(prev => mergeDirectsFromApi(prev, mappedDirects, activeChannelIdRef.current));
+
                         // Select new channel
                         setActiveChannelId(newChannel.chatChannelID);
                         setActiveChannelType('Direct');
@@ -1154,7 +1304,7 @@ const ChatPage: React.FC = () => {
                 }}
                 okText="Lưu cấu hình"
                 cancelText="Hủy"
-                destroyOnClose
+                destroyOnHidden
             >
                 <div style={{ padding: '16px 0' }}>
                     {/* 1. Thời gian tắt bong bóng */}
@@ -1189,9 +1339,9 @@ const ChatPage: React.FC = () => {
                                 Chỉ thông báo "Bạn có tin nhắn mới" thay vì hiện văn bản chi tiết.
                             </Text>
                         </div>
-                        <Switch 
-                            checked={chatSettings.privacy} 
-                            onChange={(checked) => setChatSettings({ ...chatSettings, privacy: checked })} 
+                        <Switch
+                            checked={chatSettings.privacy}
+                            onChange={(checked) => setChatSettings({ ...chatSettings, privacy: checked })}
                         />
                     </div>
 
@@ -1205,9 +1355,9 @@ const ChatPage: React.FC = () => {
                                 Phát tiếng chuông kép thanh lịch mỗi khi nhận được tin nhắn mới.
                             </Text>
                         </div>
-                        <Switch 
-                            checked={chatSettings.sound} 
-                            onChange={(checked) => setChatSettings({ ...chatSettings, sound: checked })} 
+                        <Switch
+                            checked={chatSettings.sound}
+                            onChange={(checked) => setChatSettings({ ...chatSettings, sound: checked })}
                         />
                     </div>
 
@@ -1221,9 +1371,9 @@ const ChatPage: React.FC = () => {
                                 Nhấp nháy tab khi nhận tin nhắn lúc đang mở tab ứng dụng khác.
                             </Text>
                         </div>
-                        <Switch 
-                            checked={chatSettings.tabFlash} 
-                            onChange={(checked) => setChatSettings({ ...chatSettings, tabFlash: checked })} 
+                        <Switch
+                            checked={chatSettings.tabFlash}
+                            onChange={(checked) => setChatSettings({ ...chatSettings, tabFlash: checked })}
                         />
                     </div>
                 </div>

@@ -120,7 +120,7 @@ export const DepartmentTree: React.FC<DepartmentTreeProps> = ({
 
             <div style={{ marginTop: 24, flex: 1 }}>
                 {loading && treeData.length === 0 ? (
-                    <div style={{ padding: '20px', textAlign: 'center' }}><Spin size="small" tip="Loading..." /></div>
+                    <div style={{ padding: '20px', textAlign: 'center' }}><Spin size="small" description="Loading..." /></div>
                 ) : (
                     <Tree
                         treeData={treeData}

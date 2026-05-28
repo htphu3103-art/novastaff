@@ -16,6 +16,7 @@ using NovaStaff.Hubs;
 using NovaStaff.Services.Interfaces;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using System.Threading.RateLimiting;
 using NovaStaff.Web.Middlewares;
 using StackExchange.Redis;
@@ -30,7 +31,11 @@ builder.Services.AddScoped<AuditInterceptor>();
 
 // Program.cs
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+    });
 builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -74,10 +79,23 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins(origins)
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
+        policy
+            .SetIsOriginAllowed(origin =>
+            {
+                if (string.IsNullOrWhiteSpace(origin))
+                    return false;
+
+                if (origins.Contains(origin, StringComparer.OrdinalIgnoreCase))
+                    return true;
+
+                if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                    return false;
+
+                return uri.Host.EndsWith(".trycloudflare.com", StringComparison.OrdinalIgnoreCase);
+            })
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials();
     });
 });
 
@@ -85,7 +103,8 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders =
         ForwardedHeaders.XForwardedFor |
-        ForwardedHeaders.XForwardedProto;
+        ForwardedHeaders.XForwardedProto |
+        ForwardedHeaders.XForwardedHost;
 
     options.KnownNetworks.Clear();
     options.KnownProxies.Clear();
@@ -238,9 +257,10 @@ builder.Services.AddAuthentication(options =>
 // ================================================================
 var app = builder.Build();
 
+app.UseForwardedHeaders();
+
 // Middleware x? l? l?i toĂ n c?c nĂªn Ä‘?t Ä‘?u tiĂªn
 app.UseMiddleware<GlobalExceptionMiddleware>();
-app.UseForwardedHeaders();
 
 if (app.Environment.IsDevelopment())
 {

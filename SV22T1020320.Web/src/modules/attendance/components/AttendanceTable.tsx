@@ -77,12 +77,12 @@ export const AttendanceTable = ({ isAdmin, dataSource, loading = false, onDelete
             key: 'employeeName',
             hidden: !isAdmin,
             render: (text: string, record: any) => record.isSkeleton ? (
-                <Space direction="vertical" size={0}>
+                <Space orientation="vertical" size={0}>
                     <Skeleton.Input active size="small" style={{ width: 120 }} />
                     <Skeleton.Input active size="small" style={{ width: 60, height: 12 }} />
                 </Space>
             ) : (
-                <Space direction="vertical" size={0}>
+                <Space orientation="vertical" size={0}>
                     <strong>{text}</strong>
                     <span style={{ fontSize: '12px', color: '#888' }}>{record.employeeCode}</span>
                 </Space>
@@ -92,12 +92,12 @@ export const AttendanceTable = ({ isAdmin, dataSource, loading = false, onDelete
             title: 'Time',
             key: 'time',
             render: (_: any, record: any) => record.isSkeleton ? (
-                <Space direction="vertical" size={0}>
+                <Space orientation="vertical" size={0}>
                     <Skeleton.Input active size="small" style={{ width: 60, height: 14 }} />
                     <Skeleton.Input active size="small" style={{ width: 60, height: 14 }} />
                 </Space>
             ) : (
-                <Space direction="vertical" size={0}>
+                <Space orientation="vertical" size={0}>
                     <span>In: {record.checkIn ? dayjs(record.checkIn).format('HH:mm') : '--:--'}</span>
                     <span>Out: {record.checkOut ? dayjs(record.checkOut).format('HH:mm') : '--:--'}</span>
                 </Space>

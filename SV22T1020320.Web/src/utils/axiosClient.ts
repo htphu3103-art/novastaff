@@ -19,7 +19,7 @@ const processQueue = (error: unknown, token: string | null = null) => {
 };
 
 export const axiosClient: AxiosInstance = axios.create({
-    baseURL: "http://localhost:5102/api",
+    baseURL: "/api",
     headers: {
         "Content-Type": "application/json",
     },
@@ -42,6 +42,28 @@ axiosClient.interceptors.request.use(
 axiosClient.interceptors.response.use(
     (response) => response,
     async (error) => {
+        // Normalize RFC7807 ProblemDetails so UI consistently shows `detail`
+        // (some places read `data.message` first, which can be generic).
+        const data = error?.response?.data;
+        if (data && typeof data === "object") {
+            const maybeDetail = (data as any).detail;
+            const maybeMessage = (data as any).message;
+            const maybeStatus = (data as any).status;
+            const maybeTitle = (data as any).title;
+            const isProblemDetailsLike =
+                typeof maybeDetail === "string" &&
+                typeof maybeStatus === "number" &&
+                typeof maybeTitle === "string";
+
+            if (isProblemDetailsLike) {
+                // Keep original message if present, but prefer the human-friendly `detail`.
+                if (typeof maybeMessage === "string" && maybeMessage && maybeMessage !== maybeDetail) {
+                    (data as any)._originalMessage = maybeMessage;
+                }
+                (data as any).message = maybeDetail;
+            }
+        }
+
         const originalRequest = error.config as AxiosRequestConfigWithRetry;
 
         // Nếu API refresh bị lỗi hoặc 401 không phải do token hết hạn -> Logout

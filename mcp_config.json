@@ -1,0 +1,19 @@
+{
+    "mcpServers": {
+        "pointa": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "pointa-server"
+            ]
+        },
+        "semble": {
+            "command": "uvx",
+            "args": [
+                "--from",
+                "semble[mcp]",
+                "semble"
+            ]
+        }
+    }
+}

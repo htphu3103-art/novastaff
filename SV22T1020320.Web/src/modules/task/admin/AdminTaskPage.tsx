@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
     Row, Col, Button, Select, Typography, Space, Modal, Form, Input,
-    Drawer, Tag, Divider, Spin, DatePicker, App, Avatar, Descriptions
+    Drawer, Tag, Divider, Spin, DatePicker, App, Avatar, Descriptions, Grid
 } from "antd";
 import {
     PlusOutlined, SaveOutlined, ReloadOutlined, DeleteOutlined, EditOutlined,
@@ -20,6 +20,7 @@ import KanbanColumn from "../components/KanbanColumn";
 import TaskCardBody from "../components/TaskCardBody";
 
 const { Title, Text } = Typography;
+const { useBreakpoint } = Grid;
 
 // Helper: Map chuỗi status từ Backend ("Todo", "InProgress", "Done") sang key UI ("todo", "inprogress", "done")
 const statusToUiKey = (status: string): string => {
@@ -67,6 +68,8 @@ export default function AdminTaskPage({ user }: any) {
     const [isLoading, setIsLoading] = useState(false);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [filterEmployeeId, setFilterEmployeeId] = useState<number | null>(null);
+    const screens = useBreakpoint();
+    const isMobile = !screens.md;
 
     // Form và Modal state
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -310,7 +313,7 @@ export default function AdminTaskPage({ user }: any) {
             <Spin spinning={isLoading} description="Đang tải công việc...">
                 <Row gutter={16}>
                     {COLUMNS.map(col => (
-                        <Col span={8} key={col.key}>
+                        <Col xs={24} md={8} key={col.key} style={isMobile ? { marginBottom: 16 } : undefined}>
                             <KanbanColumn
                                 title={col.label}
                                 status={col.key}
@@ -387,7 +390,7 @@ export default function AdminTaskPage({ user }: any) {
             <Drawer
                 title={<span><EditOutlined /> Chi tiết công việc</span>}
                 placement="right"
-                styles={{ wrapper: { width: 480 } }}
+                styles={{ wrapper: { width: isMobile ? '100%' : 480 } }}
                 onClose={() => setIsDetailDrawerOpen(false)}
                 open={isDetailDrawerOpen}
                 footer={

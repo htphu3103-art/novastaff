@@ -12,6 +12,7 @@ using NovaStaff.Shared.Activation;
 using System.Linq.Expressions;
 using Microsoft.Extensions.Configuration;
 using NovaStaff.Shared.Email;
+using Microsoft.AspNetCore.Http;
 
 namespace NovaStaff.BusinessLayers.Services;
 
@@ -26,6 +27,7 @@ public class EmployeeService : IEmployeeService
     private readonly IActivationTokenService _activationTokenService;
     private readonly IEmailService _emailService;
     private readonly IConfiguration _configuration;      // ← thêm field
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
     public EmployeeService(
         IEmployeeRepository employeeRepo,
@@ -36,7 +38,8 @@ public class EmployeeService : IEmployeeService
         ICurrentUserService currentUser,
         IActivationTokenService activationTokenService,
         IEmailService emailService,
-        IConfiguration configuration)                    // ← thêm
+        IConfiguration configuration,
+        IHttpContextAccessor httpContextAccessor)
     {
         _employeeRepo = employeeRepo;
         _deptRepo = deptRepo;
@@ -47,6 +50,16 @@ public class EmployeeService : IEmployeeService
         _activationTokenService = activationTokenService;
         _emailService = emailService;
         _configuration = configuration;                  // ← thêm
+        _httpContextAccessor = httpContextAccessor;
+    }
+
+    private string GetFrontendBaseUrl()
+    {
+        var req = _httpContextAccessor.HttpContext?.Request;
+        if (req is not null)
+            return $"{req.Scheme}://{req.Host}{req.PathBase}";
+
+        return _configuration["App:FrontendUrl"]!;
     }
 
     private static EmployeeDto MapToDto(Employee e) => new()
@@ -328,7 +341,7 @@ public class EmployeeService : IEmployeeService
         var token = await _activationTokenService.CreateAsync(tokenData, ct);
 
         // 8. GỬI EMAIL
-        var frontendUrl = _configuration["App:FrontendUrl"]!;
+        var frontendUrl = GetFrontendBaseUrl();
         var activationLink = $"{frontendUrl}/activate?token={token}";
 
         _ = _emailService.SendAsync(
@@ -439,18 +452,62 @@ public class EmployeeService : IEmployeeService
     public async Task DeleteAsync(int id, CancellationToken ct = default)
     {
         var emp = await _employeeRepo.GetByIdAsync(id, true, ct: ct);
-        if (emp == null) throw new KeyNotFoundException("Nhân viên không tồn tại");
 
-        // Kiểm tra ràng buộc (Subordinates, Manager...)
-        var hasSub = (await _employeeRepo.GetSubordinatesAsync(id, ct: ct)).Any();
-        if (hasSub) throw new InvalidOperationException("Không thể xóa nhân viên đang quản lý người khác");
+        if (emp == null)
+            throw new KeyNotFoundException("Nhân viên không tồn tại");
 
-        // Lưu dữ liệu cũ để log trước khi xóa mất
-        var oldData = new { emp.EmployeeID, emp.EmployeeCode, emp.FullName, emp.Email };
+        var hasSub = (await _employeeRepo
+            .GetSubordinatesAsync(id, ct: ct))
+            .Any();
+
+        if (hasSub)
+            throw new InvalidOperationException(
+                "Không thể xóa nhân viên đang quản lý người khác");
+
+        var managedDepartments = await _deptRepo
+    .GetManagedDepartmentsAsync(id, ct);
+
+        if (managedDepartments.Any())
+        {
+            throw new InvalidOperationException(
+                "Không thể xóa nhân viên đang là quản lý phòng ban");
+        }
+
+        var user = await _userRepo.GetByEmployeeIdAsync(emp.EmployeeID, ct);
+
+        if (user != null)
+        {
+            _userRepo.Delete(user);
+        }
 
         _employeeRepo.Delete(emp);
 
-        await _uow.SaveChangesAsync(ct);
+        try
+        {
+            await _uow.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex)
+        {
+            // SQL Server/Postgres messages vary; include outer + inner text
+            // so we can reliably match constraint/column names.
+            var msg = string.Join(" | ",
+                ex.Message ?? "",
+                ex.InnerException?.Message ?? "");
+
+            // Nếu vẫn còn FK reference (race condition / dữ liệu không đồng bộ),
+            // trả về thông báo nghiệp vụ thay vì message EF generic.
+            if (msg.Contains("ManagerEmployeeID", StringComparison.OrdinalIgnoreCase) ||
+                msg.Contains("FK_Departments_Employees_ManagerEmployeeID", StringComparison.OrdinalIgnoreCase) ||
+                msg.Contains("IX_Departments_ManagerEmployeeID", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Không thể xóa nhân viên đang là quản lý phòng ban");
+
+            if (msg.Contains("SupervisorID", StringComparison.OrdinalIgnoreCase) ||
+                msg.Contains("FK_Employees_Employees_SupervisorID", StringComparison.OrdinalIgnoreCase) ||
+                msg.Contains("IX_Employees_SupervisorID", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Không thể xóa nhân viên đang quản lý người khác");
+
+            throw;
+        }
     }
 
     // ========================= DOMAIN LOGIC =========================

@@ -1,28 +1,23 @@
- # AI Project Context Map
+# NovaStaff Web — AI Router
 
-## A. Feature Map
-* **attendance** → tracks employee check-ins, check-outs, and leave requests
-* **auth** → handles login, account activation, token management, and authentication flow
-* **chat** → manages real-time messaging or communication interfaces
-* **dashboard** → main landing view, aggregate metrics, and overview statistics
-* **departments** → manages organizational hierarchy, department data, and manager assignments
-* **employee** → handles employee directories, profiles, and basic user management
-* **payroll** → processes salaries, pay periods, and financial distributions
-* **task** → kanban-style task management, workflow tracking, and assignment handling
+**FE root:** `e:\my_projects\novastaff\SV22T1020320.Web` · **src:** `...\src\` · **shards:** `...\docs\ai\` · **BE:** [`..\AI_BE_CONTEXT.md`](../AI_BE_CONTEXT.md)
 
-## B. Global Infrastructure Map
-* **routing** → `src/routes/` (core file: `index.tsx`)
-* **auth state** → `src/contexts/` (core file: `AuthContext.tsx`)
-* **api base** → `src/utils/` (core file: `axiosClient.ts`)
-* **global store** → `src/store/` (core file: `taskStore.ts`)
+**Chỉ đọc file này trước (task FE).** 1 shard `docs/ai/` + ≤2 file `src/`. Không `Glob`/`Grep` toàn `src/`.
 
-## C. File Access Strategy
-**RULES FOR FUTURE AGENT RUNS:**
-1. Never scan the full project again.
-2. Always consult this file first before determining which files to access.
-3. Always jump directly to the predicted module based on the Feature Map.
-4. Only open a maximum of 3 files per task.
-5. If unsure about a file's location, refine the guess *inside the same module*. DO NOT initiate a new project-wide scan.
+| Nhiệm vụ | Shard |
+|----------|-------|
+| Route, auth, axios, layout | [`docs/ai/00-core.md`](docs/ai/00-core.md) |
+| Login, activate, users | [`docs/ai/auth.md`](docs/ai/auth.md) |
+| Trang chủ, thống kê | [`docs/ai/dashboard.md`](docs/ai/dashboard.md) |
+| Kanban, work-tasks | [`docs/ai/task.md`](docs/ai/task.md) |
+| Chấm công, đơn nghỉ | [`docs/ai/attendance.md`](docs/ai/attendance.md) |
+| Kỳ lương, payslip | [`docs/ai/payroll.md`](docs/ai/payroll.md) |
+| Phòng ban (+ NV trong page) | [`docs/ai/departments.md`](docs/ai/departments.md) |
+| API nhân viên (không route) | [`docs/ai/employee.md`](docs/ai/employee.md) |
+| Chat REST + SignalR | [`docs/ai/chat.md`](docs/ai/chat.md) |
 
-## D. Confidence Note
-*This context is approximate and based on an initial scan. It should be used for routing, not deep reasoning.*
+**Semble:** `top_k: 3` · ≤2× `search` + 1× `find_related` · `repo` FE `...\SV22T1020320.Web` · BE `e:\my_projects\novastaff`
+
+**Rules:** ≤2 `src/`/task · NV → shard `departments` trước · ignore `src/modules/chat/pages/ChatPage.tsx` · skip `node_modules` `dist` `package-lock.json` · file >400 dòng: `Read` offset/limit hoặc Semble line
+
+**Cursor (bạn):** Rules gọn, trùng router → xóa · MCP: Semble on · task mới → chat mới

@@ -259,7 +259,7 @@ export default function AdminAttendancePage() {
                     defaultActiveKey="1"
                     type="card"
                     className="attendance-tabs"
-                    destroyInactiveTabPane={true}
+                    destroyOnHidden={true}
                     items={[
                         {
                             key: '1',

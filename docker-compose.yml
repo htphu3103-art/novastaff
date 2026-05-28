@@ -1,59 +1,109 @@
 services:
-  # =====================================================
-  # PostgreSQL
-  # =====================================================
   db:
     image: postgres:16-alpine
     container_name: novastaff-postgres-compose
+
     environment:
       POSTGRES_DB: NovaStaffDB
       POSTGRES_USER: novastaff
       POSTGRES_PASSWORD: NovaStaff@2024!
+
+    command: >
+      postgres
+        -c shared_buffers=64MB
+        -c work_mem=4MB
+        -c maintenance_work_mem=16MB
+        -c max_connections=20
+        -c effective_cache_size=128MB
+
     ports:
       - "5433:5432"
+
     volumes:
       - novastaff-pgdata:/var/lib/postgresql/data
-    mem_limit: 1gb
 
-  # =====================================================
-  # Redis
-  # =====================================================
+    mem_limit: 256m
+    mem_reservation: 128m
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U novastaff -d NovaStaffDB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
   redis:
     image: redis:7-alpine
     container_name: novastaff-redis-compose
+
+    command: >
+      redis-server
+        --maxmemory 32mb
+        --maxmemory-policy allkeys-lru
+
     ports:
       - "6380:6379"
+
     volumes:
       - novastaff-redisdata:/data
-    mem_limit: 128m
 
-  # =====================================================
-  # API (ASP.NET Core)
-  # =====================================================
+    mem_limit: 64m
+    mem_reservation: 32m
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
   api:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+
     container_name: novastaff-api-compose
+
     ports:
       - "8081:8080"
+
     environment:
       - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=NovaStaffDB;Username=novastaff;Password=NovaStaff@2024!
       - ConnectionStrings__Redis=redis:6379
       - ASPNETCORE_ENVIRONMENT=Development
-    depends_on:
-      - db
-      - redis
-    mem_limit: 256m
+      - DOTNET_GCConserveMemory=5
+      - DOTNET_GCHeapHardLimit=157286400
 
-# =====================================================
-# Volumes
-# =====================================================
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+    mem_limit: 384m
+    mem_reservation: 192m
+
+    stop_grace_period: 20s
+
+    # Bật sau khi thêm:
+    # builder.Services.AddHealthChecks();
+    # app.MapHealthChecks("/health");
+
+    # healthcheck:
+    #   test:
+    #     [
+    #       "CMD-SHELL",
+    #       "wget --spider -q http://localhost:8080/health || exit 1"
+    #     ]
+    #   interval: 15s
+    #   timeout: 5s
+    #   retries: 3
+    #   start_period: 20s
+
 volumes:
   novastaff-pgdata:
   novastaff-redisdata:
 
-# =====================================================
-# Network
-# =====================================================
 networks:
   default:
     name: novastaff-compose-network

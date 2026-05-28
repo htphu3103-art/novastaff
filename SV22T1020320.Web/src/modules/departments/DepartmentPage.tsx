@@ -32,14 +32,23 @@ const getApiErrorMessage = (error: unknown, fallback: string): string => {
     const apiError = error as {
         response?: {
             data?: {
+                message?: string;
                 detail?: string;
                 title?: string;
+                errors?: Record<string, string[]>;
             };
         };
     };
 
+    const errors = apiError?.response?.data?.errors;
+    const firstValidationError = errors
+        ? Object.values(errors).flat().find(Boolean)
+        : undefined;
+
     return (
+        firstValidationError ||
         apiError?.response?.data?.detail ||
+        apiError?.response?.data?.message ||
         apiError?.response?.data?.title ||
         fallback
     );

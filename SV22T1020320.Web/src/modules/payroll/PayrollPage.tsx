@@ -195,7 +195,7 @@ const PayrollPage: React.FC = () => {
                 width="95%"
                 footer={null}
                 closable={false}
-                destroyOnClose
+                destroyOnHidden
                 styles={{ body: { padding: 0 } }}
                 style={{ top: 20 }}
             >

@@ -123,7 +123,7 @@ export const DepartmentForm = ({ open, isEdit, onCancel, onSave, form, saving }:
                         showSearch
                         optionFilterProp="filter"
                         style={{ width: '100%' }}
-                        dropdownStyle={{ minWidth: 300 }}
+                        styles={{ popup: { root: { minWidth: 300 } } }}
                         options={managers.map(m => ({
                             value: m.employeeID,
                             filter: `${m.fullName} ${m.employeeCode} ${m.position}`,

@@ -195,26 +195,40 @@ const ChatPage: React.FC = () => {
         <div style={{ padding: '12px 14px 4px', fontSize: 11, color: '#aaa', letterSpacing: 0.6, textTransform: 'uppercase' }}>
           Tin nhắn trực tiếp
         </div>
-        {dmChannels.map((dm) => (
-          <div
-            key={dm.chatChannelID}
-            onClick={() => switchChannel(dm.chatChannelID)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              padding: '7px 14px', cursor: 'pointer', borderRadius: 6, margin: '1px 6px',
-            }}
-          >
-            <div style={{ position: 'relative', flexShrink: 0 }}>
-              <Avatar size={28} style={{ background: '#E6F1FB', color: '#185FA5', fontSize: 11, fontWeight: 500 }}>
-                {dm.name.slice(0, 2).toUpperCase()}
-              </Avatar>
-              {/* DM: cần map targetUserID — hiện để placeholder, sẽ fix sau khi có UserProfileDto */}
-              <OnlineDot online={false} />
+        {dmChannels.map((dm) => {
+          const isActiveDM = activeChannelID === dm.chatChannelID;
+          const unreadCount = Math.max(0, dm.unreadCount ?? 0);
+          return (
+            <div
+              key={dm.chatChannelID}
+              onClick={() => switchChannel(dm.chatChannelID)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '7px 14px', cursor: 'pointer', borderRadius: 6, margin: '1px 6px',
+                background: isActiveDM ? '#fff' : 'transparent',
+                boxShadow: isActiveDM ? '0 0 0 0.5px #ebebeb' : 'none',
+                transition: 'all 0.15s',
+              }}
+            >
+              <Badge dot={unreadCount > 0} offset={[-1, 3]}>
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  <Avatar size={28} style={{ background: '#E6F1FB', color: '#185FA5', fontSize: 11, fontWeight: 500 }}>
+                    {dm.name.slice(0, 2).toUpperCase()}
+                  </Avatar>
+                  {/* DM: cần map targetUserID — hiện để placeholder, sẽ fix sau khi có UserProfileDto */}
+                  <OnlineDot online={false} />
+                </div>
+              </Badge>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <Text strong style={{ fontSize: 13, display: 'block' }}>{dm.name}</Text>
+                <Text type="secondary" ellipsis style={{ fontSize: 11, width: 130 }}>
+                  {dm.lastMessage?.content ?? ''}
+                </Text>
+              </div>
+              {unreadCount > 0 && <Badge count={unreadCount} size="small" />}
             </div>
-            <Text style={{ fontSize: 13, flex: 1 }}>{dm.name}</Text>
-            {dm.unreadCount > 0 && <Badge count={dm.unreadCount} size="small" />}
-          </div>
-        ))}
+          );
+        })}
       </Sider>
 
       {/* ── Chat area ────────────────────────────────────── */}

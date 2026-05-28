@@ -65,7 +65,7 @@ export const AdjustmentModal: React.FC<AdjustmentModalProps> = ({ open, onCancel
             confirmLoading={loading}
             okText="Lưu thay đổi"
             cancelText="Hủy bỏ"
-            destroyOnClose
+            destroyOnHidden
         >
             <div style={{ marginBottom: 20, padding: '12px 16px', background: '#f0f7ff', borderRadius: 8, border: '1px solid #bae0ff' }}>
                 <Row gutter={16}>

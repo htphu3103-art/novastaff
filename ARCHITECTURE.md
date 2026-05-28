@@ -1,8 +1,7 @@
 # NovaStaff — Architecture Decision Record (ADR)
 
-> **Mục đích**: File này đóng vai trò là "memory" (bộ nhớ dài hạn) cho AI assistant và tài liệu onboarding cho team development.
-> **Quy tắc sử dụng**: Cung cấp toàn bộ nội dung file này vào đầu mỗi conversation mới để AI nắm bắt đúng context, các quy tắc kiến trúc đã chốt, tránh đi sai hướng.
-> **Bảo trì**: Cập nhật file này ngay lập tức mỗi khi có quyết định kiến trúc hoặc convention mới được thống nhất ở cả Backend lẫn Frontend.
+> **AI agents:** Đọc [`AI_BE_CONTEXT.md`](AI_BE_CONTEXT.md) (BE) hoặc [`SV22T1020320.Web/AI_PROJECT_CONTEXT.md`](SV22T1020320.Web/AI_PROJECT_CONTEXT.md) (FE) — **không** nạp nguyên file ADR (~150 dòng). Dùng Semble `top_k: 3` khi cần chi tiết code.
+> **Onboarding người:** File này là bộ nhớ dài hạn team. Cập nhật khi có quyết định kiến trúc mới (đồng bộ router AI tương ứng).
 
 ---
 
@@ -12,7 +11,7 @@
 |---|---|---|
 | **Backend** | ASP.NET Core, C# | RESTful API, Global Exception Handling |
 | **ORM** | Entity Framework Core | Code-first, Configurations mapping riêng biệt |
-| **Database** | SQL Server | Sử dụng kiểu `HierarchyId` native cho dữ liệu phân cấp |
+| **Database** | SQL Server | Phòng ban: **OrgPath** materialized path (string), unique index |
 | **Frontend** | React + TypeScript | Strict mode, Modular Architecture |
 | **Networking** | Axios | Tích hợp Interceptors, Credential support (Cookies) |
 
@@ -20,27 +19,15 @@
 
 ## 2. Project Structure
 
-### 2.1. Backend Structure
+### 2.1. Backend Structure (solution thực tế)
 ```text
-NovaStaff/
-├── Models/
-│   ├── Common/          # BaseEntity, PagedResult<T>
-│   ├── Entities/        # Domain entities
-│   ├── DTOs/            # Request/Response objects
-│   └── Filters/         # Filter objects (thay thế EF delegates)
-├── DataLayers/
-│   ├── AppDbContext.cs
-│   ├── Configurations/  # IEntityTypeConfiguration<T>
-│   ├── Interfaces/
-│   │   ├── IRepository.cs
-│   │   ├── IUnitOfWork.cs
-│   │   └── Repositories/
-│   └── Repositories/
-│       ├── GenericRepository.cs
-│       └── [Entity]Repository.cs
-└── Services/
-    ├── Interfaces/
-    └── [Entity]Service.cs
+novastaff/
+├── NovaStaff.Model/           # Entities, DTOs, Filters, Exceptions
+├── NovaStaff.DataLayes/       # DbContext, Configurations, Repositories, Interceptors
+├── NovaStaff.BusinessLayers/  # Service interfaces + implementations (namespace NovaStaff.Services)
+├── NovaStaff.Admin/           # API Controllers, Program.cs, Middleware
+├── NovaStaff.Infrastructure/
+└── Shared/NovaStaff.Shared/
 ```
 
 ### 2.2. Frontend Structure (Isolation & Modular)
@@ -100,7 +87,7 @@ NovaStaff/
 - ✅ Chứa 100% Business Logic.
 - ✅ Quản lý Transaction boundary và quyết định `IsolationLevel` cho từng operation.
 - ❌ **KHÔNG** trực tiếp query `DbContext`.
-- ✅ Gọi domain logic (ví dụ: `HierarchyId.GetDescendant`).
+- ✅ Gọi domain logic repo (ví dụ: `GenerateNewNodeAsync` cho `OrgPath`).
 - ✅ Gọi `SaveChangesAsync()` thông qua UnitOfWork, không qua Repository.
 
 ### 5.4. Controller & Web API Rules (Program.cs)
@@ -111,26 +98,19 @@ NovaStaff/
 
 ---
 
-## 6. Backend: Department & HierarchyId (Critical Domain)
+## 6. Backend: Department & OrgPath (Critical Domain)
 
 ### 6.1. Entity & Repository
-- **OrgNode**: Property setter **KHÔNG** tự tính `OrgLevel`. DB computed column là single source of truth.
-- Tập trung logic truy vấn Tree Node tại Repository để tối ưu round-trip DB (`GetPositionAsync`, `GetLastRootNodeAsync`, `GetLastChildNodeAsync`, `GenerateNewNodeAsync`).
-- XÓA bỏ `GetParentNodeAsync` (đã rename thành `GetPositionAsync`).
+- **OrgPath**: Materialized path (string). Setter cập nhật `OrgLevel` từ độ sâu path.
+- Logic cây tập trung Repository: `GenerateNewNodeAsync`, descendants/children queries.
 
 ### 6.2. Indexes (Safety Net)
-- Bắt buộc phải có **UNIQUE INDEX** trên `OrgNode` (`IX_Departments_OrgNode`) làm safety net phòng chống race condition.
-- Có partial UNIQUE INDEX trên `Code` (`[Code] IS NOT NULL AND [IsDeleted] = 0`).
+- **UNIQUE** trên `OrgPath` (`IX_Departments_OrgPath`).
+- **UNIQUE** trên `Code` (`IX_Departments_Code`) khi có mã.
 
 ### 6.3. Concurrency & Atomicity
-- **Vấn đề**: Khi nhiều thread cùng lúc (Thread A, Thread B) tạo child node sẽ sinh ra trùng lặp OrgNode.
-- **Giải pháp**: Bắt buộc bọc bằng `Serializable Transaction` trong Service.
-```csharp
-// Mẫu trong DepartmentService.CreateAsync
-await using var tx = await _uow.BeginTransactionAsync(IsolationLevel.Serializable);
-// Lấy parent, lấy lastChild, sinh newNode (domain logic), SaveChanges
-await tx.CommitAsync(ct);
-```
+- Nhiều request tạo node con đồng thời → trùng path nếu không khóa.
+- **Giải pháp:** `DepartmentService` dùng `ExecuteInTransactionAsync(..., IsolationLevel.Serializable)` + `GenerateNewNodeAsync`.
 
 ---
 

@@ -1,0 +1,14 @@
+---
+description: Giảm token — đọc file, Semble, scope repo NovaStaff Web
+alwaysApply: true
+---
+
+# Token efficiency (NovaStaff Web)
+
+**Web:** `e:\my_projects\novastaff\SV22T1020320.Web` · Router FE: `...\AI_PROJECT_CONTEXT.md` · BE: `e:\my_projects\novastaff\AI_BE_CONTEXT.md` · Shards: `...\docs\ai\` · Code FE: `...\src\` only.
+
+1. Đọc `e:\my_projects\novastaff\SV22T1020320.Web\AI_PROJECT_CONTEXT.md` → **1** shard trong `...\docs\ai\`. Tối đa **2** file trong `...\src\` / task.
+2. Không `Glob`/`Grep` toàn `SV22T1020320.Web\src\`. File >400 dòng: `Read` offset/limit hoặc Semble line range.
+3. Bỏ qua `...\src\modules\chat\pages\ChatPage.tsx` (duplicate; route: `...\src\modules\chat\ChatPage.tsx`).
+4. **Semble** `top_k: 3`; max 2× search + 1× find_related. `repo` FE: `e:\my_projects\novastaff\SV22T1020320.Web`; BE: `e:\my_projects\novastaff`.
+5. Không đọc `package-lock.json`, migrations, `node_modules`, `dist`.

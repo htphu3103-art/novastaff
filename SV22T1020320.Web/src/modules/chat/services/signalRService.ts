@@ -16,8 +16,14 @@ class SignalRService {
   private onReconnectedHandlers: Array<() => void> = [];
   private handlers: { [event: string]: Array<EventHandler<any>> } = {};
   private connectPromise: Promise<void> | null = null;
+  private disconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   connect(): Promise<void> {
+    if (this.disconnectTimer) {
+      clearTimeout(this.disconnectTimer);
+      this.disconnectTimer = null;
+    }
+
     if (this.connection?.state === HubConnectionState.Connected) return Promise.resolve();
     if (this.connectPromise) return this.connectPromise;
 
@@ -25,7 +31,7 @@ class SignalRService {
       try {
         this.connection = new HubConnectionBuilder()
           // SignalR hub mount ở /chathub (xem cấu hình app.MapHub<ChatHub>("/chathub") trong Program.cs)
-          .withUrl('http://localhost:5102/chathub', {
+          .withUrl('/chathub', {
             // axiosClient dùng localStorage key "token" — giữ nhất quán
             accessTokenFactory: () => localStorage.getItem('token') ?? '',
           })
@@ -69,12 +75,19 @@ class SignalRService {
   }
 
   async disconnect(): Promise<void> {
-    this.connectPromise = null;
-    const currentConn = this.connection;
-    this.connection = null;
-    if (currentConn) {
-      await currentConn.stop();
-    }
+    if (this.disconnectTimer) clearTimeout(this.disconnectTimer);
+
+    this.disconnectTimer = setTimeout(async () => {
+      this.connectPromise = null;
+      this.disconnectTimer = null;
+
+      const currentConn = this.connection;
+      this.connection = null;
+
+      if (currentConn) {
+        await currentConn.stop();
+      }
+    }, 100);
   }
 
   // ── Client → Server ────────────────────────────────────────
