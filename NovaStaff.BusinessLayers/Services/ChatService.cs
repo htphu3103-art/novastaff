@@ -350,7 +350,7 @@ WHERE ""ChatChannelID"" = {channelID} AND ""UserID"" = {userID};
     {
         var users = await _db.Users
             .Include(u => u.Employee)
-                .ThenInclude(e => e.Department)
+                .ThenInclude(e => e!.Department)
             .Where(u => u.IsActive && u.UserID != currentUserID)
             .Select(u => new ChatUserLookupDto
             {
