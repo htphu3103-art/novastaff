@@ -306,6 +306,7 @@ using (var scope = app.Services.CreateScope())
             await context.Database.MigrateAsync();
 
             logger.LogInformation("Database migration successful.");
+            await DatabaseSeeder.SeedAsync(context, logger);
             break;
         }
         catch (Exception ex)
