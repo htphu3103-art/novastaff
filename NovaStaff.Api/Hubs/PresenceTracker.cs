@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using NovaStaff.BusinessLayers.Interfaces;
 
 namespace NovaStaff.Hubs;
 
@@ -7,11 +8,11 @@ namespace NovaStaff.Hubs;
 /// Thread-safe in-memory tracker: UserID ↔ Set of ConnectionIDs
 /// Đủ dùng cho team nội bộ. Nếu scale multi-server thì chuyển sang Redis.
 /// </summary>
-public class PresenceTracker
+public class PresenceTracker : IPresenceTracker
 {
     // userID → set of connectionIds (user có thể mở nhiều tab)
-    private static readonly Dictionary<int, HashSet<string>> _connections = new();
-    private static readonly object _lock = new();
+    private readonly Dictionary<int, HashSet<string>> _connections = new();
+    private readonly object _lock = new();
 
     public Task UserConnected(int userID, string connectionId)
     {

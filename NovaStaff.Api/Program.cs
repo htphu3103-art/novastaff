@@ -168,7 +168,7 @@ builder.Services.AddDbContext<AppDbContext>((sp, options) =>
 // ================================================================
 builder.Services.AddScoped(typeof(IRepository<,>), typeof(GenericRepository<,>));
 builder.Services.AddSingleton<IDateTimeService, DateTimeService>();
-builder.Services.AddSingleton<PresenceTracker>();
+builder.Services.AddSingleton<NovaStaff.BusinessLayers.Interfaces.IPresenceTracker, NovaStaff.Hubs.PresenceTracker>();
 builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
 builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();

@@ -14,6 +14,7 @@ class SignalRService {
   private connection: HubConnection | null = null;
   private onReconnectingHandlers: Array<() => void> = [];
   private onReconnectedHandlers: Array<() => void> = [];
+  private onConnectedHandlers: Array<() => void> = [];
   private handlers: { [event: string]: Array<EventHandler<any>> } = {};
   private connectPromise: Promise<void> | null = null;
   private disconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -65,6 +66,7 @@ class SignalRService {
 
         await this.connection.start();
         console.info('[SignalR] Connected');
+        this.onConnectedHandlers.forEach(h => h()); // notify tất cả listeners
       } catch (error) {
         this.connectPromise = null;
         throw error;
@@ -114,6 +116,11 @@ class SignalRService {
 
   // ── Server → Client ────────────────────────────────────────
 
+  async getOnlineUsers(): Promise<number[]> {
+    if (this.connection?.state !== HubConnectionState.Connected) return [];
+    return this.connection.invoke<number[]>('GetOnlineUsers');
+  }
+
   onReceiveMessage(handler: EventHandler<MessageDto>): () => void {
     return this.on('ReceiveMessage', handler);
   }
@@ -140,6 +147,10 @@ class SignalRService {
     return this.on('UserOffline', handler);
   }
 
+  onOnlineUsersList(handler: EventHandler<number[]>): () => void {
+    return this.on('OnlineUsersList', handler);
+  }
+
   // ── Connection Event Handlers ───────────────────────────────────
 
   onReconnecting(handler: () => void): () => void {
@@ -155,6 +166,18 @@ class SignalRService {
     return () => {
       const index = this.onReconnectedHandlers.indexOf(handler);
       if (index > -1) this.onReconnectedHandlers.splice(index, 1);
+    };
+  }
+
+  onConnected(handler: () => void): () => void {
+    this.onConnectedHandlers.push(handler);
+    // Nếu đã connected rồi thì gọi luôn
+    if (this.connection?.state === HubConnectionState.Connected) {
+      handler();
+    }
+    return () => {
+      const i = this.onConnectedHandlers.indexOf(handler);
+      if (i > -1) this.onConnectedHandlers.splice(i, 1);
     };
   }
 
@@ -174,10 +197,12 @@ class SignalRService {
     }
     this.handlers[event].push(handler);
 
+    console.log(`[SignalRService] Registering handler for ${event}. Connection exists? ${!!this.connection}`);
     // If connection already exists, register immediately
     this.connection?.on(event, handler);
 
     return () => {
+      console.log(`[SignalRService] Unregistering handler for ${event}`);
       const index = this.handlers[event].indexOf(handler);
       if (index > -1) {
         this.handlers[event].splice(index, 1);

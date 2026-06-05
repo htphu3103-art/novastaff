@@ -7,6 +7,8 @@ export interface ChannelDto {
   type: 'Group' | 'Direct';
   unreadCount: number;
   lastMessage?: MessageDto;
+  /** Chỉ có với DM: userID của người dùng còn lại trong cuộc trò chuyện */
+  targetUserID?: number;
 }
 
 export interface MessageDto {

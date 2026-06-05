@@ -43,6 +43,7 @@ interface DirectMessage extends ChatListItemBase {
     color: string;
     bg: string;
     online: boolean;
+    targetUserID?: number;
 }
 
 interface Message {
@@ -91,15 +92,19 @@ const mapChannelDtoToChannel = (dto: ChannelDto): Channel => ({
     type: dto.type,
 });
 
-const mapChannelDtoToDirect = (dto: ChannelDto): DirectMessage => {
+const mapChannelDtoToDirect = (dto: ChannelDto, onlineUserIds?: Set<number>): DirectMessage => {
     const { color, bg } = getColorForUser(dto.name.substring(0, 2).toUpperCase());
+    const targetUserID = dto.targetUserID;
     return {
         id: normalizeChannelId(dto.chatChannelID),
         name: dto.name,
         initials: dto.name.substring(0, 2).toUpperCase(),
         color,
         bg,
-        online: false,
+        online: targetUserID != null && onlineUserIds != null
+            ? onlineUserIds.has(targetUserID)
+            : false,
+        targetUserID,
         lastMsg: dto.lastMessage?.content || '',
         unread: Number(dto.unreadCount ?? 0) || 0,
     };
@@ -141,7 +146,8 @@ const applyIncomingMessageToList = <T extends ChatListItemBase>(
 const mergeDirectsFromApi = (
     prevDirects: DirectMessage[],
     apiDirects: DirectMessage[],
-    activeChannelId: number | null
+    activeChannelId: number | null,
+    onlineUserIds?: Set<number>
 ): DirectMessage[] => {
     const prevById = new Map(prevDirects.map(item => [normalizeChannelId(item.id), item]));
     const activeId = normalizeChannelId(activeChannelId);
@@ -150,12 +156,17 @@ const mergeDirectsFromApi = (
         const channelId = normalizeChannelId(apiItem.id);
         const prevItem = prevById.get(channelId);
         const isActive = channelId === activeId;
+        // Tính online từ onlineUserIds nếu có, fallback về giá trị cũ
+        const online = onlineUserIds != null && apiItem.targetUserID != null
+            ? onlineUserIds.has(apiItem.targetUserID)
+            : (prevItem?.online ?? apiItem.online ?? false);
 
         return {
             ...apiItem,
             id: channelId,
             unread: isActive ? 0 : Number(prevItem?.unread ?? apiItem.unread ?? 0) || 0,
             lastMsg: prevItem?.lastMsg ?? apiItem.lastMsg ?? '',
+            online,
         };
     });
 };
@@ -359,6 +370,7 @@ const ChatPage: React.FC = () => {
     const channelsRef = useRef<Channel[]>(cachedChannels || []);
     const directsRef = useRef<DirectMessage[]>(cachedDirects || []);
     const sentMessageIdsRef = useRef<Set<number>>(new Set());
+    const onlineUserIdsRef = useRef<Set<number>>(new Set());
 
     // Sync state updates to cache reactively
     useEffect(() => {
@@ -513,8 +525,8 @@ const ChatPage: React.FC = () => {
 
                             const mappedDirects = allChannels
                                 .filter(c => c.type === 'Direct')
-                                .map(mapChannelDtoToDirect);
-                            setDirects(prev => mergeDirectsFromApi(prev, mappedDirects, activeChannelIdRef.current));
+                                .map(c => mapChannelDtoToDirect(c, onlineUserIdsRef.current));
+                            setDirects(prev => mergeDirectsFromApi(prev, mappedDirects, activeChannelIdRef.current, onlineUserIdsRef.current));
                         }).catch(err => {
                             console.error('Error syncing channels for incoming message:', err);
                         });
@@ -532,6 +544,39 @@ const ChatPage: React.FC = () => {
                             },
                         });
                     }
+                });
+
+                // Listen for presence events
+                let unsubscribeUserOnline: (() => void) | null = null;
+                let unsubscribeUserOffline: (() => void) | null = null;
+                let unsubscribeOnlineUsersList: (() => void) | null = null;
+
+                unsubscribeUserOnline = signalRService.onUserOnline((userId) => {
+                    const uid = Number(userId);
+                    onlineUserIdsRef.current = new Set([...onlineUserIdsRef.current, uid]);
+                    setDirects(prev => prev.map(d =>
+                        d.targetUserID === uid ? { ...d, online: true } : d
+                    ));
+                });
+
+                unsubscribeUserOffline = signalRService.onUserOffline((userId) => {
+                    const uid = Number(userId);
+                    const next = new Set(onlineUserIdsRef.current);
+                    next.delete(uid);
+                    onlineUserIdsRef.current = next;
+                    setDirects(prev => prev.map(d =>
+                        d.targetUserID === uid ? { ...d, online: false } : d
+                    ));
+                });
+
+                unsubscribeOnlineUsersList = signalRService.onOnlineUsersList((userIds) => {
+                    const nextSet = new Set(userIds.map(Number));
+                    onlineUserIdsRef.current = nextSet;
+                    // Đồng bộ online status toàn bộ DM list
+                    setDirects(prev => prev.map(d => ({
+                        ...d,
+                        online: d.targetUserID != null ? nextSet.has(d.targetUserID) : false,
+                    })));
                 });
 
                 // Listen for reconnection events
@@ -592,8 +637,8 @@ const ChatPage: React.FC = () => {
 
                 const mappedDirects = allChannels
                     .filter(c => c.type === 'Direct')
-                    .map(mapChannelDtoToDirect);
-                setDirects(prev => mergeDirectsFromApi(prev, mappedDirects, activeChannelIdRef.current));
+                    .map(c => mapChannelDtoToDirect(c, onlineUserIdsRef.current));
+                setDirects(prev => mergeDirectsFromApi(prev, mappedDirects, activeChannelIdRef.current, onlineUserIdsRef.current));
             } catch (error) {
                 message.error('Không thể tải dữ liệu chat');
                 console.error('Error loading chat data:', error);
@@ -623,8 +668,8 @@ const ChatPage: React.FC = () => {
 
                 const mappedDirects = allChannels
                     .filter(c => c.type === 'Direct')
-                    .map(mapChannelDtoToDirect);
-                setDirects(prev => mergeDirectsFromApi(prev, mappedDirects, activeChannelIdRef.current));
+                    .map(c => mapChannelDtoToDirect(c, onlineUserIdsRef.current));
+                setDirects(prev => mergeDirectsFromApi(prev, mappedDirects, activeChannelIdRef.current, onlineUserIdsRef.current));
             } catch {
                 // ignore – best-effort refresh
             }
@@ -1198,8 +1243,8 @@ const ChatPage: React.FC = () => {
 
                         const mappedDirects = allChannels
                             .filter(c => c.type === 'Direct')
-                            .map(mapChannelDtoToDirect);
-                        setDirects(prev => mergeDirectsFromApi(prev, mappedDirects, activeChannelIdRef.current));
+                            .map(c => mapChannelDtoToDirect(c, onlineUserIdsRef.current));
+                        setDirects(prev => mergeDirectsFromApi(prev, mappedDirects, activeChannelIdRef.current, onlineUserIdsRef.current));
 
                         // Select new channel
                         setActiveChannelId(newChannel.chatChannelID);

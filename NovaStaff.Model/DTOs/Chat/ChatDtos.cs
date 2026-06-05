@@ -13,6 +13,8 @@ public class ChannelDto
     public string Type { get; set; } = string.Empty;   // "Group" | "Direct"
     public int UnreadCount { get; set; }
     public MessageDto? LastMessage { get; set; }
+    /// <summary>Chỉ có với DM: UserID của người dùng còn lại trong cuộc trò chuyện.</summary>
+    public int? TargetUserID { get; set; }
 }
 
 public class MessageDto

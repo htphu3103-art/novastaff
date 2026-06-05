@@ -21,15 +21,17 @@ export function useChatSignalR({ currentUserID }: UseChatSignalROptions) {
   const [nextCursor, setNextCursor] = useState<number | undefined>();
   const [onlineUserIDs, setOnlineUserIDs] = useState<Set<number>>(new Set());
   const [typingUsers, setTypingUsers] = useState<Map<number, ReturnType<typeof setTimeout>>>(new Map());
-  const [isConnected, setIsConnected] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
   // ── Connect — signalRService tự lấy token từ localStorage ──
 
   useEffect(() => {
-    signalRService.connect().then(() => setIsConnected(true));
-    return () => { signalRService.disconnect(); };
-  }, []); // không phụ thuộc getToken nữa
+    signalRService.connect();
+
+    return () => {
+      signalRService.disconnect();
+    };
+  }, []);
 
   // ── Load channels ──────────────────────────────────────────
 
@@ -40,8 +42,6 @@ export function useChatSignalR({ currentUserID }: UseChatSignalROptions) {
   // ── Server → Client events ────────────────────────────────
 
   useEffect(() => {
-    if (!isConnected) return;
-
     const cleanups = [
       signalRService.onReceiveMessage((msg) => {
         setMessages((prev) =>
@@ -111,21 +111,48 @@ export function useChatSignalR({ currentUserID }: UseChatSignalROptions) {
         });
       }),
 
-      signalRService.onUserOnline((uid) =>
-        setOnlineUserIDs((prev) => new Set([...prev, uid]))
-      ),
+      signalRService.onUserOnline((uid) => {
+        console.log('[SignalR] UserOnline received:', uid, typeof uid);
+        setOnlineUserIDs((prev) => new Set([...prev, uid]));
+      }),
 
-      signalRService.onUserOffline((uid) =>
+      signalRService.onUserOffline((uid) => {
+        console.log('[SignalR] UserOffline received:', uid);
         setOnlineUserIDs((prev) => {
           const s = new Set(prev);
           s.delete(uid);
           return s;
-        })
-      ),
+        });
+      }),
+
+      signalRService.onOnlineUsersList((uids) => {
+        console.log('[SignalR] OnlineUsersList received:', uids);
+        setOnlineUserIDs(new Set(uids));
+      }),
     ];
 
     return () => cleanups.forEach((fn) => fn());
-  }, [isConnected, activeChannelID, currentUserID]);
+  }, [activeChannelID, currentUserID]);
+
+  // Debug state change
+  useEffect(() => {
+      console.log('[Debug] onlineUserIDs state changed. Current Set:', Array.from(onlineUserIDs));
+  }, [onlineUserIDs]);
+
+  // Sync online users once connected — dùng callback từ service thay vì isConnected state
+  // Tránh race condition StrictMode: lần mount 2 gọi connect() trả về Promise.resolve() ngay
+  // trước khi setIsConnected(false) của cleanup kịp chạy.
+  useEffect(() => {
+    const cleanup = signalRService.onConnected(() => {
+      console.log('[SignalR] onConnected fired, fetching online users...');
+      signalRService.getOnlineUsers().then((uids) => {
+        console.log('[SignalR] Fetched online users manually:', uids);
+        setOnlineUserIDs(new Set(uids));
+      });
+    });
+
+    return cleanup;
+  }, []);
 
   // ── Switch channel ────────────────────────────────────────
 
@@ -202,7 +229,6 @@ export function useChatSignalR({ currentUserID }: UseChatSignalROptions) {
     messages,
     hasMore,
     isLoadingMessages,
-    isConnected,
     onlineUserIDs,
     typingUserIDs: [...typingUsers.keys()],
     switchChannel,

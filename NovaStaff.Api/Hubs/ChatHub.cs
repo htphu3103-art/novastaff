@@ -12,9 +12,9 @@ namespace NovaStaff.Hubs;
 public class ChatHub : Hub
 {
     private readonly IChatService _chatService;
-    private readonly PresenceTracker _presence;
+    private readonly IPresenceTracker _presence;
 
-    public ChatHub(IChatService chatService, PresenceTracker presence)
+    public ChatHub(IChatService chatService, IPresenceTracker presence)
     {
         _chatService = chatService;
         _presence = presence;
@@ -25,6 +25,8 @@ public class ChatHub : Hub
     public override async Task OnConnectedAsync()
     {
         var userID = GetUserID();
+        Console.WriteLine($"[ChatHub] Connected: userID={userID}, connID={Context.ConnectionId}");
+
         await _presence.UserConnected(userID, Context.ConnectionId);
 
         // Join tất cả SignalR groups tương ứng với channels của user
@@ -34,6 +36,12 @@ public class ChatHub : Hub
 
         // Thông báo cho những người khác biết user này online
         await Clients.Others.SendAsync("UserOnline", userID);
+
+        // Gửi danh sách user đang online cho chính người vừa kết nối
+        var onlineUsers = _presence.GetOnlineUserIDs();
+        Console.WriteLine($"[ChatHub] OnlineUsers count: {onlineUsers.Length}");
+        
+        await Clients.Caller.SendAsync("OnlineUsersList", onlineUsers);
 
         await base.OnConnectedAsync();
     }
@@ -60,7 +68,13 @@ public class ChatHub : Hub
         await _chatService.MarkChannelReadAsync(channelID, userID);
     }
 
-    /// <summary>Gửi tin nhắn mới</summary>
+    /// <summary>Danh sach user dang online.</summary>
+    public Task<int[]> GetOnlineUsers()
+    {
+        return Task.FromResult(_presence.GetOnlineUserIDs());
+    }
+
+    /// <summary>Gui tin nhan moi.</summary>
     public async Task SendMessage(int channelID, SendMessageRequest request)
     {
         var userID = GetUserID();

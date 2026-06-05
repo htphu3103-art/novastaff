@@ -8,16 +8,17 @@ using NovaStaff.DataLayers;
 using NovaStaff.Models.DTOs.Chat;
 using NovaStaff.Models.Entities;
 using NovaStaff.Models.Enums;
-
 namespace NovaStaff.BusinessLayers.Services;
 
 public class ChatService : IChatService
 {
     private readonly AppDbContext _db;
+    private readonly IPresenceTracker _presence;
 
-    public ChatService(AppDbContext db)
+    public ChatService(AppDbContext db, IPresenceTracker presence)
     {
         _db = db;
+        _presence = presence;
     }
 
     // Ă¢â€â‚¬Ă¢â€â‚¬ Channels Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬
@@ -28,6 +29,8 @@ public class ChatService : IChatService
             .Where(m => m.UserID == userID)
             .Include(m => m.Channel)
                 .ThenInclude(c => c.Messages.OrderByDescending(msg => msg.CreatedDate).Take(1))
+            .Include(m => m.Channel)
+                .ThenInclude(c => c.Members)
             .Select(m => new
             {
                 m.Channel,
@@ -48,7 +51,11 @@ public class ChatService : IChatService
             LastMessage = x.Channel.Messages
                 .OrderByDescending(m => m.CreatedDate)
                 .Select(m => MapToMessageDto(m, userID))
-                .FirstOrDefault()
+                .FirstOrDefault(),
+            // Với DM: gán userID của người còn lại (không phải currentUser)
+            TargetUserID = x.Channel.Type == Models.Enums.ChatChannelType.Direct
+                ? x.Channel.Members.FirstOrDefault(m => m.UserID != userID)?.UserID
+                : null
         }).ToList();
     }
 
@@ -262,7 +269,7 @@ WHERE ""ChatChannelID"" = {channelID} AND ""UserID"" = {userID};
 
     public async Task<List<MemberDto>> GetChannelMembersAsync(int channelID)
     {
-        return await _db.ChatMembers
+        var members = await _db.ChatMembers
             .Where(m => m.ChatChannelID == channelID)
             .Include(m => m.User).ThenInclude(u => u.Employee)
             .Select(m => new MemberDto
@@ -273,6 +280,13 @@ WHERE ""ChatChannelID"" = {channelID} AND ""UserID"" = {userID};
                 IsOnline = false // sĂ¡ÂºÂ½ override tĂ¡Â»Â« PresenceTracker cĂ¡Â»Â§a SignalR
             })
             .ToListAsync();
+
+        foreach (var member in members)
+        {
+            member.IsOnline = _presence.IsOnline(member.UserID);
+        }
+
+        return members;
     }
 
     // Ă¢â€â‚¬Ă¢â€â‚¬ Helpers Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬
