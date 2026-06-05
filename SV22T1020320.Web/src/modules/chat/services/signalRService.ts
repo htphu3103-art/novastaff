@@ -30,9 +30,10 @@ class SignalRService {
 
     this.connectPromise = (async () => {
       try {
+        const baseUrl = import.meta.env.VITE_API_URL || "";
         this.connection = new HubConnectionBuilder()
           // SignalR hub mount ở /chathub (xem cấu hình app.MapHub<ChatHub>("/chathub") trong Program.cs)
-          .withUrl('/chathub', {
+          .withUrl(`${baseUrl}/chathub`, {
             // axiosClient dùng localStorage key "token" — giữ nhất quán
             accessTokenFactory: () => localStorage.getItem('token') ?? '',
           })

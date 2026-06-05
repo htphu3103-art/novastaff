@@ -19,7 +19,7 @@ const processQueue = (error: unknown, token: string | null = null) => {
 };
 
 export const axiosClient: AxiosInstance = axios.create({
-    baseURL: "/api",
+    baseURL: import.meta.env.VITE_API_URL || "/api",
     headers: {
         "Content-Type": "application/json",
     },
