@@ -14,6 +14,7 @@ COPY NovaStaff.DataLayes/NovaStaff.DataLayers.csproj NovaStaff.DataLayes/
 COPY NovaStaff.BusinessLayers/NovaStaff.BusinessLayers.csproj NovaStaff.BusinessLayers/
 COPY NovaStaff.Infrastructure/NovaStaff.Infrastructure.csproj NovaStaff.Infrastructure/
 COPY NovaStaff.Api/NovaStaff.API.csproj NovaStaff.Api/
+COPY NovaStaff.Tests/NovaStaff.Tests.csproj NovaStaff.Tests/
 
 COPY NovaStaff.sln .
 
