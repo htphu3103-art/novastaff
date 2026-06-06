@@ -12,7 +12,6 @@ using NovaStaff.Shared.Activation;
 using System.Linq.Expressions;
 using Microsoft.Extensions.Configuration;
 using NovaStaff.Shared.Email;
-using Microsoft.AspNetCore.Http;
 
 namespace NovaStaff.BusinessLayers.Services;
 
@@ -27,7 +26,6 @@ public class EmployeeService : IEmployeeService
     private readonly IActivationTokenService _activationTokenService;
     private readonly IEmailService _emailService;
     private readonly IConfiguration _configuration;      // ← thêm field
-    private readonly IHttpContextAccessor _httpContextAccessor;
 
     public EmployeeService(
         IEmployeeRepository employeeRepo,
@@ -38,8 +36,7 @@ public class EmployeeService : IEmployeeService
         ICurrentUserService currentUser,
         IActivationTokenService activationTokenService,
         IEmailService emailService,
-        IConfiguration configuration,
-        IHttpContextAccessor httpContextAccessor)
+        IConfiguration configuration)
     {
         _employeeRepo = employeeRepo;
         _deptRepo = deptRepo;
@@ -50,16 +47,14 @@ public class EmployeeService : IEmployeeService
         _activationTokenService = activationTokenService;
         _emailService = emailService;
         _configuration = configuration;                  // ← thêm
-        _httpContextAccessor = httpContextAccessor;
     }
 
     private string GetFrontendBaseUrl()
     {
-        var req = _httpContextAccessor.HttpContext?.Request;
-        if (req is not null)
-            return $"{req.Scheme}://{req.Host}{req.PathBase}";
-
-        return _configuration["App:FrontendUrl"]!;
+        var url = _configuration["App:FrontendUrl"];
+        if (string.IsNullOrWhiteSpace(url))
+            throw new InvalidOperationException("App:FrontendUrl chưa được cấu hình.");
+        return url.TrimEnd('/');
     }
 
     private static EmployeeDto MapToDto(Employee e) => new()
