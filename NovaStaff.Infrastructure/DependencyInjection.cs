@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NovaStaff.Infrastructure.Cache;
 using NovaStaff.Infrastructure.Email;
@@ -17,7 +17,7 @@ public static class DependencyInjection
     {
         // Email
         services.Configure<EmailSettings>(config.GetSection("Email"));
-        services.AddScoped<IEmailService, SmtpEmailService>();
+        services.AddScoped<IEmailService, ResendEmailService>();
 
         // Redis
         services.AddSingleton<IConnectionMultiplexer>(_ =>
