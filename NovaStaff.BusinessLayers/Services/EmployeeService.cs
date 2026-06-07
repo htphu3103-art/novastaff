@@ -343,6 +343,8 @@ public class EmployeeService : IEmployeeService
         var frontendUrl = GetFrontendBaseUrl();
         var activationLink = $"{frontendUrl}/activate?token={token}";
 
+        _logger.LogInformation("Đang gửi email kích hoạt cho {Email}", emp.Email);
+
         _ = _emailService.SendAsync(
             EmployeeEmailTemplates.Welcome(emp.Email, emp.FullName, activationLink),
             ct
@@ -350,6 +352,8 @@ public class EmployeeService : IEmployeeService
         {
             if (t.IsFaulted)
                 _logger.LogError(t.Exception, "Gửi email thất bại cho {Email}", emp.Email);
+            else
+                _logger.LogInformation("Gửi email thành công cho {Email}", emp.Email);
         }, TaskScheduler.Default);
 
         return MapToDto(emp);
