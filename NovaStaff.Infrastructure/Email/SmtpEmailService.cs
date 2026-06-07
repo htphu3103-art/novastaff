@@ -1,9 +1,10 @@
-﻿using MailKit.Net.Smtp;
+using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Options;
 using MimeKit;
 using NovaStaff.Shared.Email;
 using System.Net.Mail;
+using Microsoft.Extensions.Logging;
 using SmtpClient = MailKit.Net.Smtp.SmtpClient;
 
 namespace NovaStaff.Infrastructure.Email;
@@ -11,9 +12,15 @@ namespace NovaStaff.Infrastructure.Email;
 public class SmtpEmailService : IEmailService
 {
     private readonly EmailSettings _settings;
+    private readonly ILogger<SmtpEmailService> _logger;
 
-    public SmtpEmailService(IOptions<EmailSettings> options)
-        => _settings = options.Value;
+    public SmtpEmailService(IOptions<EmailSettings> options, ILogger<SmtpEmailService> logger)
+    {
+        _settings = options.Value;
+        _logger = logger;
+        _logger.LogInformation("Email config: Host={Host}, Port={Port}, User={User}", 
+            _settings.Host, _settings.Port, _settings.Username);
+    }
 
     public async Task SendAsync(EmailMessage message, CancellationToken ct = default)
     {
