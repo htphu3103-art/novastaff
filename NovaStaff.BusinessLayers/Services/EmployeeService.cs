@@ -11,6 +11,7 @@ using NovaStaff.Services.Interfaces;
 using NovaStaff.Shared.Activation;
 using System.Linq.Expressions;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using NovaStaff.Shared.Email;
 
 namespace NovaStaff.BusinessLayers.Services;
@@ -26,6 +27,7 @@ public class EmployeeService : IEmployeeService
     private readonly IActivationTokenService _activationTokenService;
     private readonly IEmailService _emailService;
     private readonly IConfiguration _configuration;      // ← thêm field
+    private readonly ILogger<EmployeeService> _logger;
 
     public EmployeeService(
         IEmployeeRepository employeeRepo,
@@ -36,7 +38,8 @@ public class EmployeeService : IEmployeeService
         ICurrentUserService currentUser,
         IActivationTokenService activationTokenService,
         IEmailService emailService,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        ILogger<EmployeeService> logger)
     {
         _employeeRepo = employeeRepo;
         _deptRepo = deptRepo;
@@ -46,7 +49,8 @@ public class EmployeeService : IEmployeeService
         _currentUser = currentUser;
         _activationTokenService = activationTokenService;
         _emailService = emailService;
-        _configuration = configuration;                  // ← thêm
+        _configuration = configuration;
+        _logger = logger;
     }
 
     private string GetFrontendBaseUrl()
@@ -342,7 +346,11 @@ public class EmployeeService : IEmployeeService
         _ = _emailService.SendAsync(
             EmployeeEmailTemplates.Welcome(emp.Email, emp.FullName, activationLink),
             ct
-        );
+        ).ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                _logger.LogError(t.Exception, "Gửi email thất bại cho {Email}", emp.Email);
+        }, TaskScheduler.Default);
 
         return MapToDto(emp);
     }
