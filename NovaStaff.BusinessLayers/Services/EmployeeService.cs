@@ -275,90 +275,94 @@ public class EmployeeService : IEmployeeService
         if (request.SupervisorId.HasValue && !await _employeeRepo.ExistsAsync(request.SupervisorId.Value, ct))
             throw new KeyNotFoundException("Quản lý không tồn tại");
 
-        // 5. MAP DỮ LIỆU VÀO ENTITY
-        var emp = new Employee
+        return await _uow.ExecuteInTransactionAsync(async (transactionCt) =>
         {
-            EmployeeCode = code,
-            FullName = request.FullName,
-            Email = email,
-            Gender = request.Gender,
-            BirthDate = request.BirthDate,
-            Phone = phone,
-            Address = request.Address,
-            DepartmentID = request.DepartmentId,
-            SupervisorID = request.SupervisorId,
-            Position = request.Position,
-            JobLevel = request.JobLevel,
-            BaseSalary = request.BaseSalary,
-            ContractType = request.ContractType,
-            JoinDate = request.JoinDate ?? _dateTimeService.LocalNow.Date,
-            Status = EmployeeStatus.Active
-        };
+            // 5. MAP DỮ LIỆU VÀO ENTITY
+            var emp = new Employee
+            {
+                EmployeeCode = code,
+                FullName = request.FullName,
+                Email = email,
+                Gender = request.Gender,
+                BirthDate = request.BirthDate,
+                Phone = phone,
+                Address = request.Address,
+                DepartmentID = request.DepartmentId,
+                SupervisorID = request.SupervisorId,
+                Position = request.Position,
+                JobLevel = request.JobLevel,
+                BaseSalary = request.BaseSalary,
+                ContractType = request.ContractType,
+                JoinDate = request.JoinDate ?? _dateTimeService.LocalNow.Date,
+                Status = EmployeeStatus.Active
+            };
 
-        try
-        {
-            await _employeeRepo.AddAsync(emp, ct);
-            await _uow.SaveChangesAsync(ct);
-        }
-        catch (DbUpdateException ex)
-        {
-            var msg = ex.InnerException?.Message ?? "";
+            try
+            {
+                await _employeeRepo.AddAsync(emp, transactionCt);
+                await _uow.SaveChangesAsync(transactionCt);
+            }
+            catch (DbUpdateException ex)
+            {
+                var msg = ex.InnerException?.Message ?? "";
 
-            if (msg.Contains("IX_Employees_Email"))
-                throw new InvalidOperationException("Email đã tồn tại");
+                if (msg.Contains("IX_Employees_Email"))
+                    throw new InvalidOperationException("Email đã tồn tại");
 
-            if (msg.Contains("IX_Employees_EmployeeCode"))
-                throw new InvalidOperationException("Mã NV đã tồn tại");
+                if (msg.Contains("IX_Employees_EmployeeCode"))
+                    throw new InvalidOperationException("Mã NV đã tồn tại");
 
-            if (msg.Contains("IX_Employees_Phone"))
-                throw new InvalidOperationException("SĐT đã tồn tại");
+                if (msg.Contains("IX_Employees_Phone"))
+                    throw new InvalidOperationException("SĐT đã tồn tại");
 
-            throw;
-        }
+                throw;
+            }
 
-        // 6. TẠO USER
-        var user = new User
-        {
-            EmployeeID = emp.EmployeeID,
-            Username = email,
-            PasswordHash = string.Empty,
-            IsActive = false,
-            IsLocked = false,
-            FailedLoginAttempts = 0
-        };
+            // 6. TẠO USER
+            var user = new User
+            {
+                EmployeeID = emp.EmployeeID,
+                Username = email,
+                PasswordHash = string.Empty,
+                IsActive = false,
+                IsLocked = false,
+                FailedLoginAttempts = 0
+            };
 
-        await _userRepo.AddAsync(user, ct);
-        await _uow.SaveChangesAsync(ct);
+            await _userRepo.AddAsync(user, transactionCt);
+            await _uow.SaveChangesAsync(transactionCt);
 
-        // 7. TẠO ACTIVATION TOKEN → lưu Redis
-        var tokenData = new ActivationTokenData(
-            UserId: user.UserID,
-            Email: emp.Email,
-            FullName: emp.FullName
-        );
-
-        var token = await _activationTokenService.CreateAsync(tokenData, ct);
-
-        // 8. GỬI EMAIL
-        var frontendUrl = GetFrontendBaseUrl();
-        var activationLink = $"{frontendUrl}/activate?token={token}";
-
-        _logger.LogInformation("Đang gửi email kích hoạt cho {Email}", emp.Email);
-
-        try
-        {
-            await _emailService.SendAsync(
-                EmployeeEmailTemplates.Welcome(emp.Email, emp.FullName, activationLink),
-                CancellationToken.None
+            // 7. TẠO ACTIVATION TOKEN → lưu Redis
+            var tokenData = new ActivationTokenData(
+                UserId: user.UserID,
+                Email: emp.Email,
+                FullName: emp.FullName
             );
-            _logger.LogInformation("Gửi email thành công cho {Email}", emp.Email);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Gửi email thất bại cho {Email}", emp.Email);
-        }
 
-        return MapToDto(emp);
+            var token = await _activationTokenService.CreateAsync(tokenData, transactionCt);
+
+            // 8. GỬI EMAIL
+            var frontendUrl = GetFrontendBaseUrl();
+            var activationLink = $"{frontendUrl}/activate?token={token}";
+
+            _logger.LogInformation("Đang gửi email kích hoạt cho {Email}", emp.Email);
+
+            try
+            {
+                await _emailService.SendAsync(
+                    EmployeeEmailTemplates.Welcome(emp.Email, emp.FullName, activationLink),
+                    CancellationToken.None
+                );
+                _logger.LogInformation("Gửi email thành công cho {Email}", emp.Email);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Gửi email thất bại cho {Email}. Tiến hành rollback giao dịch.", emp.Email);
+                throw new InvalidOperationException($"Không thể gửi email kích hoạt. Lỗi: {ex.Message}", ex);
+            }
+
+            return MapToDto(emp);
+        }, System.Data.IsolationLevel.ReadCommitted, ct);
     }
 
     // ========================= UPDATE =========================
