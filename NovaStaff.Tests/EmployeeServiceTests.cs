@@ -26,7 +26,6 @@ public class EmployeeServiceTests
     private readonly Mock<IActivationTokenService> _activationTokenMock = new();
     private readonly Mock<IEmailService> _emailServiceMock = new();
     private readonly Mock<IConfiguration> _configMock = new();
-    private readonly Mock<IHttpContextAccessor> _httpContextMock = new();
 
     private readonly EmployeeService _service;
 
@@ -42,8 +41,7 @@ public class EmployeeServiceTests
             _currentUserMock.Object,
             _activationTokenMock.Object,
             _emailServiceMock.Object,
-            _configMock.Object,
-            _httpContextMock.Object
+            _configMock.Object
         );
     }
 
