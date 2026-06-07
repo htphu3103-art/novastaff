@@ -347,11 +347,13 @@ public class EmployeeService : IEmployeeService
 
         _ = _emailService.SendAsync(
             EmployeeEmailTemplates.Welcome(emp.Email, emp.FullName, activationLink),
-            ct
+            CancellationToken.None
         ).ContinueWith(t =>
         {
             if (t.IsFaulted)
                 _logger.LogError(t.Exception, "Gửi email thất bại cho {Email}", emp.Email);
+            else if (t.IsCanceled)
+                _logger.LogWarning("Gửi email bị hủy cho {Email}", emp.Email);
             else
                 _logger.LogInformation("Gửi email thành công cho {Email}", emp.Email);
         }, TaskScheduler.Default);
