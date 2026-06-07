@@ -8,6 +8,7 @@ using NovaStaff.Services.Interfaces;
 using NovaStaff.Shared.Activation;
 using NovaStaff.Shared.Email;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http;
 using NovaStaff.BusinessLayers.Services;
 using NovaStaff.Models.DTOs.Employees;
@@ -26,6 +27,7 @@ public class EmployeeServiceTests
     private readonly Mock<IActivationTokenService> _activationTokenMock = new();
     private readonly Mock<IEmailService> _emailServiceMock = new();
     private readonly Mock<IConfiguration> _configMock = new();
+    private readonly Mock<ILogger<EmployeeService>> _loggerMock = new();
 
     private readonly EmployeeService _service;
 
@@ -41,7 +43,8 @@ public class EmployeeServiceTests
             _currentUserMock.Object,
             _activationTokenMock.Object,
             _emailServiceMock.Object,
-            _configMock.Object
+            _configMock.Object,
+            _loggerMock.Object  // thêm sau khi fix fire-and-forget email logging
         );
     }
 
