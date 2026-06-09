@@ -17,7 +17,11 @@ public static class DependencyInjection
     {
         // Email
         services.Configure<EmailSettings>(config.GetSection("Email"));
-        services.AddScoped<IEmailService, ResendEmailService>();
+        var isDevelopment = config["ASPNETCORE_ENVIRONMENT"] == "Development";
+        if (isDevelopment)
+            services.AddScoped<IEmailService, SmtpEmailService>();
+        else
+            services.AddScoped<IEmailService, ResendEmailService>();
 
         // Redis
         services.AddSingleton<IConnectionMultiplexer>(_ =>

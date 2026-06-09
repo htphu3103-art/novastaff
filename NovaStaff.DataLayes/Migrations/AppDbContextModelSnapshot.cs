@@ -998,7 +998,10 @@ namespace NovaStaff.DataLayers.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-                    b.Property<int>("EmployeeID")
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("EmployeeID")
                         .HasColumnType("integer");
 
                     b.Property<int>("FailedLoginAttempts")
@@ -1008,6 +1011,11 @@ namespace NovaStaff.DataLayers.Migrations
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<bool>("IsLocked")
                         .ValueGeneratedOnAdd()
@@ -1054,6 +1062,9 @@ namespace NovaStaff.DataLayers.Migrations
                         .IsUnique()
                         .HasDatabaseName("IX_Users_EmployeeID")
                         .HasFilter("\"EmployeeID\" IS NOT NULL");
+
+                    b.HasIndex("IsDeleted")
+                        .HasDatabaseName("IX_Users_IsDeleted");
 
                     b.HasIndex("Username")
                         .IsUnique()
@@ -1246,8 +1257,7 @@ namespace NovaStaff.DataLayers.Migrations
                     b.HasOne("NovaStaff.Models.Entities.Employee", "Employee")
                         .WithOne("User")
                         .HasForeignKey("User", "EmployeeID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Employee");
                 });

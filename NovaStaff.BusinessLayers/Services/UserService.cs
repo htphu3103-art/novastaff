@@ -145,7 +145,7 @@ namespace NovaStaff.BusinessLayers.Services
             if (!Enum.TryParse<UserRole>(currentRole, out var role) || role != UserRole.Admin)
                 throw new UnauthorizedAccessException("Forbidden");
 
-            var user = await _userRepo.GetByEmployeeIdAsync(employeeId, ct);
+            var user = await _userRepo.GetByEmployeeIdAsync(employeeId, ct: ct);
 
             // 👉 nếu chưa có user thì tạo mới
             if (user == null)

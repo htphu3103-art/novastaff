@@ -126,4 +126,67 @@ public class EmployeeRepository
             .OrderBy(e => e.FullName)
             .ToListAsync(ct);
     }
+
+    // ── Pre-delete FK existence checks ───────────────────────────────────────
+
+    public Task<bool> HasLeaveRequestsAsync(int employeeId, CancellationToken ct = default)
+        => _context.Set<global::LeaveRequest>()
+            .AnyAsync(lr => lr.EmployeeID == employeeId, ct);
+
+    public Task<bool> HasAttendanceRecordsAsync(int employeeId, CancellationToken ct = default)
+        => _context.Set<NovaStaff.Models.Entities.AttendanceRecord>()
+            .AnyAsync(a => a.EmployeeID == employeeId, ct);
+
+    public Task<bool> HasPayrollDetailsAsync(int employeeId, CancellationToken ct = default)
+        => _context.Set<NovaStaff.Models.Entities.PayrollDetail>()
+            .AnyAsync(p => p.EmployeeID == employeeId, ct);
+
+    public Task<bool> HasWorkTasksAsync(int employeeId, CancellationToken ct = default)
+        => _context.Set<NovaStaff.Models.Entities.WorkTask>()
+            .AnyAsync(t => t.EmployeeID == employeeId, ct);
+
+    public async Task<List<Employee>> GetByStatusAsync(
+    EmployeeStatus status,
+    bool trackChanges = false,
+    CancellationToken ct = default)
+    {
+        var query = trackChanges
+            ? _dbSet
+            : _dbSet.AsNoTracking();
+
+        return await query
+            .Where(e => e.Status == status)
+            .OrderBy(e => e.FullName)
+            .ToListAsync(ct);
+    }
+
+    public Task<int> CountByStatusAsync(
+        EmployeeStatus status,
+        CancellationToken ct = default)
+    {
+        return _dbSet.CountAsync(e => e.Status == status, ct);
+    }
+
+    public Task<bool> ExistsByStatusAsync(
+        EmployeeStatus status,
+        CancellationToken ct = default)
+    {
+        return _dbSet.AnyAsync(e => e.Status == status, ct);
+    }
+
+    public async Task<List<Employee>> GetActiveEmployeesAsync(
+    bool trackChanges = false,
+    CancellationToken ct = default)
+    {
+        var query = trackChanges
+            ? _dbSet
+            : _dbSet.AsNoTracking();
+
+        return await query
+            .Where(e =>
+                e.Status == EmployeeStatus.Active ||
+                e.Status == EmployeeStatus.Probation)
+            .OrderBy(e => e.FullName)
+            .ToListAsync(ct);
+    }
 }

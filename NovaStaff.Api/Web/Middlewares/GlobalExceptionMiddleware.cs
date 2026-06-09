@@ -55,12 +55,16 @@ public class GlobalExceptionMiddleware
         // 500 → Error, còn lại → Warning (business rule violation không phải lỗi hệ thống)
         if (statusCode >= 500)
             _logger.LogError(ex,
-                "Unhandled exception at {Path}. StatusCode: {StatusCode}. TraceId: {TraceId}",
-                context.Request.Path, statusCode, context.TraceIdentifier);
+                "Unhandled exception at {Path}. StatusCode: {StatusCode}. TraceId: {TraceId} | Inner: {Inner} | InnerInner: {InnerInner}",
+                context.Request.Path, statusCode, context.TraceIdentifier,
+                ex.InnerException?.Message,
+                ex.InnerException?.InnerException?.Message);
         else
             _logger.LogWarning(ex,
-                "Business exception at {Path}. StatusCode: {StatusCode}. TraceId: {TraceId}",
-                context.Request.Path, statusCode, context.TraceIdentifier);
+                "Business exception at {Path}. StatusCode: {StatusCode}. TraceId: {TraceId} | Inner: {Inner} | InnerInner: {InnerInner}",
+                context.Request.Path, statusCode, context.TraceIdentifier,
+                ex.InnerException?.Message,
+                ex.InnerException?.InnerException?.Message);
 
         var errorCode = ex switch
         {

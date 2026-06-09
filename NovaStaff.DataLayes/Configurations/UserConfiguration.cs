@@ -63,6 +63,13 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.Property(u => u.LockoutEnd);
 
+        // Soft Delete
+        builder.Property(u => u.IsDeleted)
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.Property(u => u.DeletedAt);
+
         // -- Relationships --
         builder.HasOne(u => u.Employee)
             .WithOne(e => e.User)
@@ -87,5 +94,8 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.HasIndex(u => new { u.IsLocked, u.LockoutEnd, u.FailedLoginAttempts })
             .HasDatabaseName("IX_Users_Lock_Optimize");
+
+        builder.HasIndex(u => u.IsDeleted)
+            .HasDatabaseName("IX_Users_IsDeleted");
     }
 }

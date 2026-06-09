@@ -1,6 +1,7 @@
 // Services/Interfaces/IEmployeeService.cs
 using NovaStaff.Models.Common;
 using NovaStaff.Models.DTOs.Employees;
+using NovaStaff.Models.Enums;
 using NovaStaff.Models.Filters;
 
 namespace NovaStaff.Services.Interfaces;
@@ -232,4 +233,9 @@ public interface IEmployeeService
         CancellationToken ct = default);
 
     Task<IEnumerable<EmployeeManagerDto>> GetManagersAsync(CancellationToken ct = default);
+
+    Task ChangeStatusAsync(
+    int employeeId,
+    EmployeeStatus status,
+    CancellationToken ct = default);
 }

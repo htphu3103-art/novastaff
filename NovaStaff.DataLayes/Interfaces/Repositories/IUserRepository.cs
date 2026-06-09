@@ -1,4 +1,4 @@
-﻿// Interfaces/Repositories/IUserRepository.cs
+// Interfaces/Repositories/IUserRepository.cs
 using NovaStaff.Models.Entities;
 
 /*
@@ -118,8 +118,18 @@ public interface IUserRepository : IRepository<User, int>
         int? excludeUserId = null,
         CancellationToken ct = default);
 
-    Task<User?> GetByEmployeeIdAsync(int employeeId, CancellationToken ct);
+    Task<User?> GetByEmployeeIdAsync(int employeeId, bool trackChanges = true, CancellationToken ct = default);
     Task<int?> GetEmployeeIdByUserIdAsync(int userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Soft-delete User khi Employee bị xóa:
+    ///   1. Đánh dấu IsDeleted = true, xóa EmployeeID (orphan user)
+    ///   2. Xóa tất cả ChatMember để user rời mọi kênh chat
+    /// Giữ nguyên ChatMessage + MessageReaction để lịch sử chat còn đó.
+    /// Gọi trước _userRepo.Delete(user) nếu muốn hard-delete, 
+    /// hoặc thay thế Delete() để chỉ soft-delete.
+    /// </summary>
+    Task SoftDeleteChatUserAsync(int userId, CancellationToken ct = default);
 }
 
 
