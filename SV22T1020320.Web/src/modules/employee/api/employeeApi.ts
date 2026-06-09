@@ -1,5 +1,6 @@
 // api/employeeApi.ts
 import { axiosClient as api } from "../../../utils/axiosClient";
+import { EmployeeStatus } from "../types";
 import {
     EmployeeDto,
     PagedResult,
@@ -56,7 +57,7 @@ export const employeeApi = {
      */
     getSubordinates: (id: number, signal?: AbortSignal) =>
         api.get<EmployeeDto[]>(`/employees/${id}/subordinates`, { signal }),
-    
+
     /**
      * Lấy danh sách nhân viên quản lý.
      * Gọi đến: [HttpGet("managers")] api/employees/managers
@@ -97,4 +98,12 @@ export const employeeApi = {
      */
     transfer: (id: number, request: TransferDepartmentRequest) =>
         api.put(`/employees/${id}/transfer`, request),
+
+    changeStatus: (
+        id: number,
+        status: EmployeeStatus
+    ) =>
+        api.put(`/employees/${id}/status`, {
+            status,
+        }),
 };

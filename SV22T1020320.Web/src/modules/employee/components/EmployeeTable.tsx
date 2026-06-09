@@ -1,10 +1,11 @@
 import React, { useMemo } from "react";
 import { Button, Popconfirm, Space, Table, Tag, Typography, Dropdown, Skeleton } from "antd";
 import type { TablePaginationConfig, ColumnsType } from "antd/es/table";
-import { DeleteOutlined, EditOutlined, DragOutlined, LockOutlined, SafetyOutlined } from "@ant-design/icons";
+import { DeleteOutlined, EditOutlined, DragOutlined, LockOutlined, SafetyOutlined, UserSwitchOutlined } from "@ant-design/icons";
 import { EmployeeDto } from "../types";
 import { UserRole } from "../../auth/types";
 import { motion } from "framer-motion";
+import { EmployeeStatus } from "../types";
 
 const { Text } = Typography;
 
@@ -19,23 +20,31 @@ interface Props {
     draggable?: boolean;
     onDragStart?: (record: EmployeeDto, e: React.DragEvent) => void;
     onDragEnd?: () => void;
+    onChangeStatus?: (
+        id: number,
+        status: EmployeeStatus
+    ) => void;
 }
 
 const statusColorMap: Record<string, string> = {
     Active: "green",
-    Inactive: "default",
-    Resigned: "red",
+    Probation: "blue",
     OnLeave: "orange",
+    Resigned: "red",
+    Terminated: "volcano",
+    Retired: "purple",
+    Deceased: "default",
 };
 
-export const EmployeeTable = ({ 
-    loading, 
-    dataSource, 
-    pagination, 
-    onEdit, 
+export const EmployeeTable = ({
+    loading,
+    dataSource,
+    pagination,
+    onEdit,
     onDelete,
     onResetPassword,
     onUpdateRole,
+    onChangeStatus,
     draggable = false,
     onDragStart,
     onDragEnd
@@ -47,7 +56,7 @@ export const EmployeeTable = ({
                 const { children, ...restProps } = props;
                 // Don't animate if it's a skeleton row or empty row
                 const isDataRow = restProps['data-row-key'] && !restProps['data-row-key'].toString().startsWith('skeleton');
-                
+
                 if (!isDataRow) return <tr {...props} />;
 
                 return (
@@ -55,8 +64,8 @@ export const EmployeeTable = ({
                         {...restProps}
                         initial={{ opacity: 0, y: 4 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ 
-                            duration: 0.4, 
+                        transition={{
+                            duration: 0.4,
                             ease: [0.16, 1, 0.3, 1]
                         }}
                     >
@@ -136,7 +145,7 @@ export const EmployeeTable = ({
             render: (_: any, record: any) => record.isSkeleton ? <Space size={4}><Skeleton.Avatar active size="small" shape="square" /><Skeleton.Avatar active size="small" shape="square" /></Space> : (
                 <Space size={4}>
                     <Button type="text" size="small" icon={<EditOutlined />} onClick={() => onEdit(record)} title="Edit" />
-                    
+
                     {onResetPassword && (
                         <Popconfirm
                             title="Reset Password?"
@@ -162,7 +171,34 @@ export const EmployeeTable = ({
                             <Button type="text" size="small" icon={<SafetyOutlined />} title="Update Role" />
                         </Dropdown>
                     )}
-
+                    {onChangeStatus && (
+                        <Dropdown
+                            trigger={["click"]}
+                            menu={{
+                                items: [
+                                    { key: EmployeeStatus.Active.toString(), label: "Active" },
+                                    { key: EmployeeStatus.Probation.toString(), label: "Probation" },
+                                    { key: EmployeeStatus.OnLeave.toString(), label: "On Leave" },
+                                    { key: EmployeeStatus.Resigned.toString(), label: "Resigned" },
+                                    { key: EmployeeStatus.Terminated.toString(), label: "Terminated" },
+                                    { key: EmployeeStatus.Retired.toString(), label: "Retired" },
+                                    { key: EmployeeStatus.Deceased.toString(), label: "Deceased" },
+                                ],
+                                onClick: (e) =>
+                                    onChangeStatus(
+                                        record.id,
+                                        Number(e.key) as EmployeeStatus
+                                    ),
+                            }}
+                        >
+                            <Button
+                                type="text"
+                                size="small"
+                                icon={<UserSwitchOutlined />}
+                                title="Change Status"
+                            />
+                        </Dropdown>
+                    )}
                     <Popconfirm
                         title="Delete employee?"
                         description={`Are you sure to delete ${record.fullName}?`}

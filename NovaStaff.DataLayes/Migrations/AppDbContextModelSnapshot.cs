@@ -606,7 +606,7 @@ namespace NovaStaff.DataLayers.Migrations
 
                             t.HasCheckConstraint("CK_Employee_Gender", "\"Gender\" IN (0, 1, 2)");
 
-                            t.HasCheckConstraint("CK_Employee_Status", "\"Status\" IN (0, 1, 2, 3, 4)");
+                            t.HasCheckConstraint("CK_Employee_Status", "\"Status\" IN (1, 2, 3, 4, 5, 6, 7)");
                         });
                 });
 

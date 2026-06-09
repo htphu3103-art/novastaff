@@ -106,4 +106,20 @@ public class EmployeeController : ControllerBase
         var result = await _employeeService.GetManagersAsync(ct);
         return Ok(result);
     }
+    /// <summary>
+    /// Thay đổi trạng thái nhân viên
+    /// </summary>
+    [HttpPut("{id:int}/status")]
+    public async Task<IActionResult> ChangeStatus(
+        int id,
+        [FromBody] ChangeEmployeeStatusRequest request,
+        CancellationToken ct)
+    {
+        await _employeeService.ChangeStatusAsync(
+            id,
+            request.Status,
+            ct);
+
+        return NoContent();
+    }
 }
