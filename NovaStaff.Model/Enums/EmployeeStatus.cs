@@ -8,11 +8,12 @@ namespace NovaStaff.Models.Enums
 {
     public enum EmployeeStatus : byte
     {
-        Unknown = 0,
-        Active = 1,
-        Inactive = 2,
+        Probation = 1,
+        Active = 2,
         Resigned = 3,
-        OnLeave = 4
+        Terminated = 4,
+        Retired = 5,
+        Deceased = 6
     }
 }
 

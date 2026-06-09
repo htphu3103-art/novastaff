@@ -99,9 +99,10 @@ public class UserRepository : GenericRepository<User, int>, IUserRepository
             (!excludeUserId.HasValue || u.UserID != excludeUserId.Value), ct);
     }
 
-    public Task<User?> GetByEmployeeIdAsync(int employeeId, CancellationToken ct)
+    public Task<User?> GetByEmployeeIdAsync(int employeeId, bool trackChanges = true, CancellationToken ct = default)
     {
-        return _dbSet.FirstOrDefaultAsync(x => x.EmployeeID == employeeId, ct);
+        var query = trackChanges ? _dbSet : _dbSet.AsNoTracking();
+        return query.FirstOrDefaultAsync(x => x.EmployeeID == employeeId, ct);
     }
     public async Task<int?> GetEmployeeIdByUserIdAsync(int userId, CancellationToken ct = default)
     {
@@ -109,5 +110,25 @@ public class UserRepository : GenericRepository<User, int>, IUserRepository
             .Where(u => u.UserID == userId)
             .Select(u => u.EmployeeID)
             .FirstOrDefaultAsync(ct);
+    }
+
+    public async Task SoftDeleteChatUserAsync(int userId, CancellationToken ct = default)
+    {
+        // 1. Soft-delete user: đánh dấu IsDeleted, xóa EmployeeID (orphan),
+        //    thu hồi quyền truy cập bằng cách deactivate
+        await _dbSet
+            .Where(u => u.UserID == userId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(u => u.IsDeleted, true)
+                .SetProperty(u => u.DeletedAt, DateTime.UtcNow)
+                .SetProperty(u => u.IsActive, false)
+                .SetProperty(u => u.EmployeeID, (int?)null),
+            ct);
+
+        // 2. Xóa tất cả ChatMember để user rời mọi kênh chat
+        //    (ChatMessage + MessageReaction giữ nguyên để lịch sử còn đó)
+        await _context.Set<NovaStaff.Models.Entities.ChatMember>()
+            .Where(cm => cm.UserID == userId)
+            .ExecuteDeleteAsync(ct);
     }
 }

@@ -1,5 +1,6 @@
 // Interfaces/Repositories/IEmployeeRepository.cs
 using NovaStaff.Models.Entities;
+using NovaStaff.Models.Enums;
 
 namespace NovaStaff.DataLayers.Interfaces.Repositories;
 
@@ -86,5 +87,35 @@ public interface IEmployeeRepository : IRepository<Employee, int>
     IEnumerable<int> departmentIds,
     bool trackChanges = false,
     Func<IQueryable<Employee>, IQueryable<Employee>>? include = null,
+    CancellationToken ct = default);
+
+    // ── Pre-delete FK existence checks ───────────────────────────────────────
+    /// <summary>Trả về true nếu nhân viên có ít nhất 1 bản ghi LeaveRequest.</summary>
+    Task<bool> HasLeaveRequestsAsync(int employeeId, CancellationToken ct = default);
+
+    /// <summary>Trả về true nếu nhân viên có ít nhất 1 bản ghi AttendanceRecord.</summary>
+    Task<bool> HasAttendanceRecordsAsync(int employeeId, CancellationToken ct = default);
+
+    /// <summary>Trả về true nếu nhân viên có ít nhất 1 bản ghi PayrollDetail.</summary>
+    Task<bool> HasPayrollDetailsAsync(int employeeId, CancellationToken ct = default);
+
+    /// <summary>Trả về true nếu nhân viên có ít nhất 1 WorkTask được giao.</summary>
+    Task<bool> HasWorkTasksAsync(int employeeId, CancellationToken ct = default);
+
+    Task<List<Employee>> GetByStatusAsync(
+    EmployeeStatus status,
+    bool trackChanges = false,
+    CancellationToken ct = default);
+
+    Task<int> CountByStatusAsync(
+        EmployeeStatus status,
+        CancellationToken ct = default);
+
+    Task<bool> ExistsByStatusAsync(
+        EmployeeStatus status,
+        CancellationToken ct = default);
+
+    Task<List<Employee>> GetActiveEmployeesAsync(
+    bool trackChanges = false,
     CancellationToken ct = default);
 }

@@ -44,6 +44,7 @@ interface DirectMessage extends ChatListItemBase {
     bg: string;
     online: boolean;
     targetUserID?: number;
+    isDeactivated?: boolean;
 }
 
 interface Message {
@@ -105,6 +106,7 @@ const mapChannelDtoToDirect = (dto: ChannelDto, onlineUserIds?: Set<number>): Di
             ? onlineUserIds.has(targetUserID)
             : false,
         targetUserID,
+        isDeactivated: dto.isDeactivated ?? false,
         lastMsg: dto.lastMessage?.content || '',
         unread: Number(dto.unreadCount ?? 0) || 0,
     };
@@ -1068,29 +1070,50 @@ const ChatPage: React.FC = () => {
 
                         {/* Input */}
                         <div style={{ padding: '16px 24px', borderTop: '1px solid #e2e8f0', background: '#fff' }}>
-                            <div className="input-focus-ring" style={{
-                                display: 'flex', alignItems: 'center', gap: 8,
-                                border: '1px solid #cbd5e1', borderRadius: 12,
-                                padding: '8px 12px', background: '#f8fafc',
-                            }}>
-                                <Button icon={<PaperClipOutlined />} type="text" size="small" style={{ color: '#64748b' }} />
-                                <Input
-                                    variant="borderless"
-                                    placeholder={`Nhắn tin tới #${activeChannel?.name}...`}
-                                    style={{ flex: 1, fontSize: 14, background: 'transparent', padding: 0 }}
-                                    value={inputValue}
-                                    onChange={e => setInputValue(e.target.value)}
-                                    onKeyDown={handleKeyDown}
-                                />
-                                <Button icon={<SmileOutlined />} type="text" size="small" style={{ color: '#64748b' }} />
-                                <Button
-                                    type="primary"
-                                    icon={<SendOutlined />}
-                                    size="middle"
-                                    onClick={handleSend}
-                                    style={{ borderRadius: 8, boxShadow: '0 2px 4px rgba(24, 95, 165, 0.2)' }}
-                                />
-                            </div>
+                            {(() => {
+                                const activeDm = activeChannelType === 'Direct'
+                                    ? directs.find(d => d.id === activeChannelId)
+                                    : undefined;
+                                if (activeDm?.isDeactivated) {
+                                    return (
+                                        <div style={{
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            gap: 8, padding: '12px 16px',
+                                            background: '#f8fafc', borderRadius: 12,
+                                            border: '1px solid #e2e8f0',
+                                            color: '#94a3b8', fontSize: 13.5, fontStyle: 'italic',
+                                        }}>
+                                            <span style={{ fontSize: 16 }}>🚫</span>
+                                            Người dùng này hiện không thể nhận tin nhắn
+                                        </div>
+                                    );
+                                }
+                                return (
+                                    <div className="input-focus-ring" style={{
+                                        display: 'flex', alignItems: 'center', gap: 8,
+                                        border: '1px solid #cbd5e1', borderRadius: 12,
+                                        padding: '8px 12px', background: '#f8fafc',
+                                    }}>
+                                        <Button icon={<PaperClipOutlined />} type="text" size="small" style={{ color: '#64748b' }} />
+                                        <Input
+                                            variant="borderless"
+                                            placeholder={`Nhắn tin tới #${activeChannel?.name}...`}
+                                            style={{ flex: 1, fontSize: 14, background: 'transparent', padding: 0 }}
+                                            value={inputValue}
+                                            onChange={e => setInputValue(e.target.value)}
+                                            onKeyDown={handleKeyDown}
+                                        />
+                                        <Button icon={<SmileOutlined />} type="text" size="small" style={{ color: '#64748b' }} />
+                                        <Button
+                                            type="primary"
+                                            icon={<SendOutlined />}
+                                            size="middle"
+                                            onClick={handleSend}
+                                            style={{ borderRadius: 8, boxShadow: '0 2px 4px rgba(24, 95, 165, 0.2)' }}
+                                        />
+                                    </div>
+                                );
+                            })()}
                         </div>
                     </>
                 )}

@@ -9,6 +9,8 @@ export interface ChannelDto {
   lastMessage?: MessageDto;
   /** Chỉ có với DM: userID của người dùng còn lại trong cuộc trò chuyện */
   targetUserID?: number;
+  /** DM: true khi người dùng còn lại đã bị xóa hoặc bị vô hiệu hóa */
+  isDeactivated?: boolean;
 }
 
 export interface MessageDto {

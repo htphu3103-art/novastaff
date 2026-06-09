@@ -293,7 +293,7 @@ public class EmployeeService : IEmployeeService
                 JobLevel = request.JobLevel,
                 BaseSalary = request.BaseSalary,
                 ContractType = request.ContractType,
-                JoinDate = request.JoinDate ?? _dateTimeService.LocalNow.Date,
+                JoinDate = (request.JoinDate ?? _dateTimeService.UtcNow.Date),
                 Status = EmployeeStatus.Active
             };
 
@@ -330,7 +330,27 @@ public class EmployeeService : IEmployeeService
             };
 
             await _userRepo.AddAsync(user, transactionCt);
-            await _uow.SaveChangesAsync(transactionCt);
+
+            try
+            {
+                await _uow.SaveChangesAsync(transactionCt);
+            }
+            catch (DbUpdateException ex)
+            {
+                var msg = ex.InnerException?.Message ?? "";
+
+                if (msg.Contains("IX_Users_Username", StringComparison.OrdinalIgnoreCase)
+                    || msg.Contains("Username", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException(
+                        "Email này đã được dùng cho một tài khoản khác (kể cả tài khoản đã bị xóa).");
+
+                if (msg.Contains("IX_Users_EmployeeID", StringComparison.OrdinalIgnoreCase)
+                    || msg.Contains("EmployeeID", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException(
+                        "Nhân viên này đã có tài khoản trong hệ thống.");
+
+                throw;
+            }
 
             // 7. TẠO ACTIVATION TOKEN → lưu Redis
             var tokenData = new ActivationTokenData(
@@ -464,34 +484,98 @@ public class EmployeeService : IEmployeeService
 
     public async Task DeleteAsync(int id, CancellationToken ct = default)
     {
-        var emp = await _employeeRepo.GetByIdAsync(id, true, ct: ct);
+        var emp = await _employeeRepo.GetByIdAsync(
+            id,
+            trackChanges: true,
+            ct: ct);
 
         if (emp == null)
-            throw new KeyNotFoundException("Nhân viên không tồn tại");
+            throw new KeyNotFoundException("Nhân viên không tồn tại.");
 
-        var hasSub = (await _employeeRepo
+        // =====================================================
+        // Chỉ cho phép xóa nhân viên đang hoạt động / thử việc
+        // =====================================================
+
+        if (emp.Status != EmployeeStatus.Active &&
+            emp.Status != EmployeeStatus.Probation)
+        {
+            throw new InvalidOperationException(
+                "Chỉ được xóa nhân viên đang hoạt động hoặc thử việc.");
+        }
+
+        // =====================================================
+        // Không được quản lý nhân viên khác
+        // =====================================================
+
+        var hasSubordinates = (await _employeeRepo
             .GetSubordinatesAsync(id, ct: ct))
             .Any();
 
-        if (hasSub)
+        if (hasSubordinates)
+        {
             throw new InvalidOperationException(
-                "Không thể xóa nhân viên đang quản lý người khác");
+                "Không thể xóa nhân viên đang quản lý người khác.");
+        }
+
+        // =====================================================
+        // Không được là trưởng phòng
+        // =====================================================
 
         var managedDepartments = await _deptRepo
-    .GetManagedDepartmentsAsync(id, ct);
+            .GetManagedDepartmentsAsync(id, ct);
 
         if (managedDepartments.Any())
         {
             throw new InvalidOperationException(
-                "Không thể xóa nhân viên đang là quản lý phòng ban");
+                "Không thể xóa nhân viên đang là quản lý phòng ban.");
         }
 
-        var user = await _userRepo.GetByEmployeeIdAsync(emp.EmployeeID, ct);
+        // =====================================================
+        // Không được có dữ liệu nghiệp vụ
+        // =====================================================
+
+        if (await _employeeRepo.HasLeaveRequestsAsync(emp.EmployeeID, ct))
+        {
+            throw new InvalidOperationException(
+                "Không thể xóa nhân viên đang có dữ liệu nghỉ phép.");
+        }
+
+        if (await _employeeRepo.HasAttendanceRecordsAsync(emp.EmployeeID, ct))
+        {
+            throw new InvalidOperationException(
+                "Không thể xóa nhân viên đang có dữ liệu chấm công.");
+        }
+
+        if (await _employeeRepo.HasPayrollDetailsAsync(emp.EmployeeID, ct))
+        {
+            throw new InvalidOperationException(
+                "Không thể xóa nhân viên đang có dữ liệu lương.");
+        }
+
+        if (await _employeeRepo.HasWorkTasksAsync(emp.EmployeeID, ct))
+        {
+            throw new InvalidOperationException(
+                "Không thể xóa nhân viên đang có công việc được giao.");
+        }
+
+        // =====================================================
+        // Không được có tài khoản hệ thống
+        // =====================================================
+
+        var user = await _userRepo.GetByEmployeeIdAsync(
+            emp.EmployeeID,
+            trackChanges: false,
+            ct: ct);
 
         if (user != null)
         {
-            _userRepo.Delete(user);
+            throw new InvalidOperationException(
+                "Không thể xóa nhân viên đã có tài khoản người dùng.");
         }
+
+        // =====================================================
+        // Hard Delete
+        // =====================================================
 
         _employeeRepo.Delete(emp);
 
@@ -501,26 +585,78 @@ public class EmployeeService : IEmployeeService
         }
         catch (DbUpdateException ex)
         {
-            // Postgres messages vary; include outer + inner text
-            // so we can reliably match constraint/column names.
             var msg = string.Join(" | ",
-                ex.Message ?? "",
-                ex.InnerException?.Message ?? "");
+                ex.Message ?? string.Empty,
+                ex.InnerException?.Message ?? string.Empty);
 
-            // Nếu vẫn còn FK reference (race condition / dữ liệu không đồng bộ),
-            // trả về thông báo nghiệp vụ thay vì message EF generic.
-            if (msg.Contains("ManagerEmployeeID", StringComparison.OrdinalIgnoreCase) ||
-                msg.Contains("FK_Departments_Employees_ManagerEmployeeID", StringComparison.OrdinalIgnoreCase) ||
-                msg.Contains("IX_Departments_ManagerEmployeeID", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("Không thể xóa nhân viên đang là quản lý phòng ban");
+            if (msg.Contains("ManagerEmployeeID",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    "Không thể xóa nhân viên đang là quản lý phòng ban.");
+            }
 
-            if (msg.Contains("SupervisorID", StringComparison.OrdinalIgnoreCase) ||
-                msg.Contains("FK_Employees_Employees_SupervisorID", StringComparison.OrdinalIgnoreCase) ||
-                msg.Contains("IX_Employees_SupervisorID", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("Không thể xóa nhân viên đang quản lý người khác");
+            if (msg.Contains("SupervisorID",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    "Không thể xóa nhân viên đang quản lý người khác.");
+            }
+
+            if (msg.Contains("LeaveRequest",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    "Không thể xóa nhân viên đang có dữ liệu nghỉ phép.");
+            }
+
+            if (msg.Contains("AttendanceRecord",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    "Không thể xóa nhân viên đang có dữ liệu chấm công.");
+            }
+
+            if (msg.Contains("PayrollDetail",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    "Không thể xóa nhân viên đang có dữ liệu lương.");
+            }
+
+            if (msg.Contains("WorkTask",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    "Không thể xóa nhân viên đang có công việc được giao.");
+            }
 
             throw;
         }
+    }
+
+    public async Task ChangeStatusAsync(
+    int employeeId,
+    EmployeeStatus status,
+    CancellationToken ct = default)
+    {
+        if (!Enum.IsDefined(typeof(EmployeeStatus), status))
+            throw new ArgumentException("Trạng thái không hợp lệ.");
+
+        var employee = await _employeeRepo.GetByIdAsync(
+            employeeId,
+            trackChanges: true,
+            ct: ct);
+
+        if (employee == null)
+            throw new KeyNotFoundException("Nhân viên không tồn tại.");
+
+        if (employee.Status == status)
+            return;
+
+        employee.Status = status;
+
+        await _uow.SaveChangesAsync(ct);
     }
 
     // ========================= DOMAIN LOGIC =========================
