@@ -130,6 +130,10 @@ public interface IUserRepository : IRepository<User, int>
     /// hoặc thay thế Delete() để chỉ soft-delete.
     /// </summary>
     Task SoftDeleteChatUserAsync(int userId, CancellationToken ct = default);
+
+    Task LockAsync(int userId, CancellationToken ct = default);
+
+    Task UnlockAsync(int userId, CancellationToken ct = default);
 }
 
 

@@ -130,5 +130,30 @@ public class UserRepository : GenericRepository<User, int>, IUserRepository
         await _context.Set<NovaStaff.Models.Entities.ChatMember>()
             .Where(cm => cm.UserID == userId)
             .ExecuteDeleteAsync(ct);
+
+
+    }
+    public async Task LockAsync(
+    int userId,
+    CancellationToken ct = default)
+    {
+        await _dbSet
+            .Where(x => x.UserID == userId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.IsLocked, true)
+                .SetProperty(x => x.LockoutEnd, DateTime.MaxValue),
+                ct);
+    }
+
+    public async Task UnlockAsync(
+        int userId,
+        CancellationToken ct = default)
+    {
+        await _dbSet
+            .Where(x => x.UserID == userId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.IsLocked, false)
+                .SetProperty(x => x.LockoutEnd, (DateTime?)null),
+                ct);
     }
 }

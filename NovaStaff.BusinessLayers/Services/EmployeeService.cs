@@ -656,6 +656,28 @@ public class EmployeeService : IEmployeeService
 
         employee.Status = status;
 
+        var user = await _userRepo.GetByEmployeeIdAsync(
+            employeeId,
+            trackChanges: false,
+            ct: ct);
+
+        if (user != null)
+        {
+            switch (status)
+            {
+                case EmployeeStatus.Resigned:
+                case EmployeeStatus.Terminated:
+                case EmployeeStatus.Retired:
+                case EmployeeStatus.Deceased:
+                    await _userRepo.LockAsync(user.UserID, ct);
+                    break;
+
+                default:
+                    await _userRepo.UnlockAsync(user.UserID, ct);
+                    break;
+            }
+        }
+
         await _uow.SaveChangesAsync(ct);
     }
 

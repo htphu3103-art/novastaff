@@ -45,3 +45,6 @@ node_modules/
 
 # Personal notes
 friction-log.md
+
+*.log
+docker_api_logs*.txt

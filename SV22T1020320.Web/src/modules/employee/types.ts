@@ -9,11 +9,13 @@ export enum GenderType {
 }
 
 export enum EmployeeStatus {
-    Unknown = 0,
     Active = 1,
-    Inactive = 2,
-    Resigned = 3,
-    OnLeave = 4
+    Probation = 2,
+    OnLeave = 3,
+    Resigned = 4,
+    Terminated = 5,
+    Retired = 6,
+    Deceased = 7,
 }
 
 export enum EmployeeSortField {

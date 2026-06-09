@@ -42,9 +42,12 @@ interface Props {
 
 const statusOptions = [
     { value: EmployeeStatus.Active, label: "Active" },
-    { value: EmployeeStatus.Inactive, label: "Inactive" },
-    { value: EmployeeStatus.Resigned, label: "Resigned" },
+    { value: EmployeeStatus.Probation, label: "Probation" },
     { value: EmployeeStatus.OnLeave, label: "On Leave" },
+    { value: EmployeeStatus.Resigned, label: "Resigned" },
+    { value: EmployeeStatus.Terminated, label: "Terminated" },
+    { value: EmployeeStatus.Retired, label: "Retired" },
+    { value: EmployeeStatus.Deceased, label: "Deceased" },
 ];
 
 const genderOptions = [
@@ -57,14 +60,27 @@ const normalizeStatus = (status: string): EmployeeStatus => {
     switch (status) {
         case "Active":
             return EmployeeStatus.Active;
-        case "Inactive":
-            return EmployeeStatus.Inactive;
-        case "Resigned":
-            return EmployeeStatus.Resigned;
+
+        case "Probation":
+            return EmployeeStatus.Probation;
+
         case "OnLeave":
             return EmployeeStatus.OnLeave;
+
+        case "Resigned":
+            return EmployeeStatus.Resigned;
+
+        case "Terminated":
+            return EmployeeStatus.Terminated;
+
+        case "Retired":
+            return EmployeeStatus.Retired;
+
+        case "Deceased":
+            return EmployeeStatus.Deceased;
+
         default:
-            return EmployeeStatus.Unknown;
+            return EmployeeStatus.Active; // hoặc giá trị mặc định phù hợp
     }
 };
 
