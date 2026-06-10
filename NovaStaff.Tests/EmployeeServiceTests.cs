@@ -1,17 +1,20 @@
 using FluentAssertions;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using NovaStaff.BusinessLayers.Interfaces;
+using NovaStaff.BusinessLayers.Interfaces.Redis;
+using NovaStaff.BusinessLayers.Services;
 using NovaStaff.DataLayers.Interfaces;
 using NovaStaff.DataLayers.Interfaces.Repositories;
+using NovaStaff.Models.Common;
+using NovaStaff.Models.DTOs.Employees;
 using NovaStaff.Models.Entities;
 using NovaStaff.Services.Interfaces;
 using NovaStaff.Shared.Activation;
 using NovaStaff.Shared.Email;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using Microsoft.AspNetCore.Http;
-using NovaStaff.BusinessLayers.Services;
-using NovaStaff.Models.DTOs.Employees;
 
 namespace NovaStaff.Tests;
 
@@ -28,24 +31,31 @@ public class EmployeeServiceTests
     private readonly Mock<IEmailService> _emailServiceMock = new();
     private readonly Mock<IConfiguration> _configMock = new();
     private readonly Mock<ILogger<EmployeeService>> _loggerMock = new();
-
+    private readonly Mock<IRefreshTokenRepository> _refreshTokenRepoMock = new();
     private readonly EmployeeService _service;
+    private readonly Mock<ITokenBlacklistService> _tokenBlacklistMock = new();
 
     public EmployeeServiceTests()
     {
         // Tạo service với tất cả mock inject vào
         _service = new EmployeeService(
-            _employeeRepoMock.Object,
-            _deptRepoMock.Object,
-            _userRepoMock.Object,
-            _uowMock.Object,
-            _dateTimeMock.Object,
-            _currentUserMock.Object,
-            _activationTokenMock.Object,
-            _emailServiceMock.Object,
-            _configMock.Object,
-            _loggerMock.Object  // thêm sau khi fix fire-and-forget email logging
-        );
+     _employeeRepoMock.Object,
+     _deptRepoMock.Object,
+     _userRepoMock.Object,
+     _uowMock.Object,
+     _dateTimeMock.Object,
+     _currentUserMock.Object,
+     _activationTokenMock.Object,
+     _emailServiceMock.Object,
+     _configMock.Object,
+     _refreshTokenRepoMock.Object,
+     _loggerMock.Object,
+     _tokenBlacklistMock.Object,
+     Options.Create(new JwtSettings
+     {
+         AccessTokenMinutes = 15
+     })
+ );
     }
 
     // ===== TEST 1: GetByIdAsync - tìm thấy nhân viên =====

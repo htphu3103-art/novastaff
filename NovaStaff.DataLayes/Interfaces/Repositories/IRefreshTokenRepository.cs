@@ -14,6 +14,6 @@ namespace NovaStaff.DataLayers.Interfaces.Repositories
         Task<RefreshToken?> GetByHashAsync(string tokenHash);
         Task<RefreshToken?> GetActiveAsync(string tokenHash);
         Task RevokeAsync(string tokenHash, string? replacedBy = null);
-        Task RevokeAllByUserAsync(int userId); // Logout tất cả thiết bị
+        Task RevokeAllByUserAsync(int userId, CancellationToken ct = default); 
     }
 }

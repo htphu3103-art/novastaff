@@ -55,13 +55,12 @@ public class RefreshTokenRepository : IRefreshTokenRepository
         refreshToken.ReplacedByTokenHash = replacedBy;
     }
 
-    public async Task RevokeAllByUserAsync(int userId)
+    public async Task RevokeAllByUserAsync(int userId, CancellationToken ct = default)
     {
-        var tokens = await _context.RefreshTokens
+        await _context.RefreshTokens
             .Where(rt => rt.UserID == userId && rt.RevokedAt == null)
-            .ToListAsync();
-
-        foreach (var token in tokens)
-            token.RevokedAt = _clock.UtcNow;
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(rt => rt.RevokedAt, _clock.UtcNow),
+                ct);
     }
 }

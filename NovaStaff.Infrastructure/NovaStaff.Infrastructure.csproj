@@ -17,8 +17,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\NovaStaff.BusinessLayers\NovaStaff.BusinessLayers.csproj" />
     <ProjectReference Include="..\NovaStaff.Model\NovaStaff.Models.csproj" />
     <ProjectReference Include="..\Shared\NovaStaff.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Token\" />
   </ItemGroup>
 
 </Project>

@@ -1,4 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NovaStaff.BusinessLayers.Interfaces;
 using NovaStaff.DataLayers.Interfaces;
 using NovaStaff.DataLayers.Interfaces.Repositories;
@@ -9,41 +12,45 @@ using NovaStaff.Models.Enums;
 using NovaStaff.Models.Filters;
 using NovaStaff.Services.Interfaces;
 using NovaStaff.Shared.Activation;
-using System.Linq.Expressions;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using NovaStaff.Shared.Email;
-
+using System.Linq.Expressions;
+using NovaStaff.BusinessLayers.Interfaces.Redis;
 namespace NovaStaff.BusinessLayers.Services;
 
 public class EmployeeService : IEmployeeService
 {
     private readonly IEmployeeRepository _employeeRepo;
     private readonly IDepartmentRepository _deptRepo;
-    private readonly IUserRepository _userRepo;          // ← thêm field
+    private readonly IUserRepository _userRepo;
     private readonly IUnitOfWork _uow;
     private readonly IDateTimeService _dateTimeService;
     private readonly ICurrentUserService _currentUser;
     private readonly IActivationTokenService _activationTokenService;
     private readonly IEmailService _emailService;
-    private readonly IConfiguration _configuration;      // ← thêm field
+    private readonly IConfiguration _configuration;
     private readonly ILogger<EmployeeService> _logger;
+    private readonly IRefreshTokenRepository _refreshTokenRepo;
+    private readonly ITokenBlacklistService _tokenBlacklistService; // 👈 thêm
+    private readonly JwtSettings _jwtSettings;                      // 👈 thêm
 
     public EmployeeService(
         IEmployeeRepository employeeRepo,
         IDepartmentRepository deptRepo,
-        IUserRepository userRepo,                        // ← thêm
+        IUserRepository userRepo,
         IUnitOfWork uow,
         IDateTimeService dateTimeService,
         ICurrentUserService currentUser,
         IActivationTokenService activationTokenService,
         IEmailService emailService,
         IConfiguration configuration,
-        ILogger<EmployeeService> logger)
+        IRefreshTokenRepository refreshTokenRepo,
+        ILogger<EmployeeService> logger,
+        ITokenBlacklistService tokenBlacklistService,   // 👈 thêm
+        IOptions<JwtSettings> jwtSettings)              // 👈 thêm
     {
         _employeeRepo = employeeRepo;
         _deptRepo = deptRepo;
-        _userRepo = userRepo;                            // ← thêm
+        _userRepo = userRepo;
         _uow = uow;
         _dateTimeService = dateTimeService;
         _currentUser = currentUser;
@@ -51,6 +58,9 @@ public class EmployeeService : IEmployeeService
         _emailService = emailService;
         _configuration = configuration;
         _logger = logger;
+        _refreshTokenRepo = refreshTokenRepo;
+        _tokenBlacklistService = tokenBlacklistService; // 👈 thêm
+        _jwtSettings = jwtSettings.Value;               // 👈 thêm
     }
 
     private string GetFrontendBaseUrl()
@@ -654,31 +664,44 @@ public class EmployeeService : IEmployeeService
         if (employee.Status == status)
             return;
 
-        employee.Status = status;
-
-        var user = await _userRepo.GetByEmployeeIdAsync(
-            employeeId,
-            trackChanges: false,
-            ct: ct);
-
-        if (user != null)
+        await _uow.ExecuteInTransactionAsync(async ct =>
         {
-            switch (status)
+            employee.Status = status;
+
+            var user = await _userRepo.GetByEmployeeIdAsync(
+                employeeId,
+                trackChanges: true,
+                ct: ct);
+
+            if (user != null)
             {
-                case EmployeeStatus.Resigned:
-                case EmployeeStatus.Terminated:
-                case EmployeeStatus.Retired:
-                case EmployeeStatus.Deceased:
+                bool shouldLock = status is EmployeeStatus.Resigned
+                                         or EmployeeStatus.Terminated
+                                         or EmployeeStatus.Retired
+                                         or EmployeeStatus.Deceased;
+
+                bool shouldUnlock = status is EmployeeStatus.Active
+                                           or EmployeeStatus.Probation
+                                           or EmployeeStatus.OnLeave;
+
+                if (shouldLock)
+                {
                     await _userRepo.LockAsync(user.UserID, ct);
-                    break;
-
-                default:
+                    await _refreshTokenRepo.RevokeAllByUserAsync(user.UserID, ct);
+                    await _tokenBlacklistService.BlacklistUserAsync(  // 👈 thêm
+                        user.UserID,
+                        TimeSpan.FromMinutes(_jwtSettings.AccessTokenMinutes),
+                        ct);
+                }
+                else if (shouldUnlock)
+                {
                     await _userRepo.UnlockAsync(user.UserID, ct);
-                    break;
+                }
             }
-        }
 
-        await _uow.SaveChangesAsync(ct);
+            await _uow.SaveChangesAsync(ct);
+            return true; // ExecuteInTransactionAsync cần TResult
+        }, ct: ct);
     }
 
     // ========================= DOMAIN LOGIC =========================

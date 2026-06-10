@@ -45,12 +45,13 @@ public class TokenService : ITokenService
     public string GenerateAccessToken(User user)
     {
         var claims = new List<Claim>
-        {
-            new(JwtRegisteredClaimNames.Sub, user.UserID.ToString()),
-            new(ClaimTypes.Name, user.Username),
-            new(ClaimTypes.Role, user.Role.ToString()),
-            new("employeeId", user.EmployeeID?.ToString() ?? string.Empty),
-        };
+    {
+        new(JwtRegisteredClaimNames.Sub, user.UserID.ToString()),
+        new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()), // 👈 thêm
+        new(ClaimTypes.Name, user.Username),
+        new(ClaimTypes.Role, user.Role.ToString()),
+        new("employeeId", user.EmployeeID?.ToString() ?? string.Empty),
+    };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.Key));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
