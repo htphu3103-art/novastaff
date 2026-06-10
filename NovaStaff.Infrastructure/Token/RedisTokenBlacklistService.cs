@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace NovaStaff.Infrastructure.Cache
+namespace NovaStaff.Infrastructure.Token
 {
     public class RedisTokenBlacklistService : ITokenBlacklistService
     {
