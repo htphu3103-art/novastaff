@@ -329,6 +329,7 @@ let cachedMessages: { [channelId: number]: Message[] } = {};
 // ─── Main Component ────────────────────────────────────────────────────────────
 
 const ChatPage: React.FC = () => {
+    const { message } = App.useApp();
     const { user } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
