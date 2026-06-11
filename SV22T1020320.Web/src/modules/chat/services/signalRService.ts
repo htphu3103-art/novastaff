@@ -30,11 +30,10 @@ class SignalRService {
 
     this.connectPromise = (async () => {
       try {
-        const baseUrl = import.meta.env.VITE_API_URL || "";
+        const hubBaseUrl = import.meta.env.VITE_SIGNALR_URL;
         this.connection = new HubConnectionBuilder()
-          // SignalR hub mount ở /chathub (xem cấu hình app.MapHub<ChatHub>("/chathub") trong Program.cs)
-          .withUrl(`${baseUrl}/chathub`, {
-            // axiosClient dùng localStorage key "token" — giữ nhất quán
+
+          .withUrl(`${hubBaseUrl}/chat`, {
             accessTokenFactory: () => localStorage.getItem('token') ?? '',
           })
           .withAutomaticReconnect([0, 2000, 5000, 10000])
@@ -73,7 +72,7 @@ class SignalRService {
         throw error;
       }
     })();
-    
+
     return this.connectPromise;
   }
 

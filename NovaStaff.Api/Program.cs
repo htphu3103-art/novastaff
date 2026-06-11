@@ -242,7 +242,7 @@ builder.Services.AddAuthentication(options =>
 
             // Nếu request là từ SignalR Hub (có chữ chathub)
             var path = context.HttpContext.Request.Path;
-            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/chathub"))
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/chat"))
             {
                 // Trích xuất token từ query string để chứng thực
                 context.Token = accessToken;
@@ -282,7 +282,7 @@ app.UseRateLimiter();
 app.UseAuthorization();
 
 
-app.MapHub<ChatHub>("/chathub");
+app.MapHub<ChatHub>("/hubs/chat");
 app.MapControllers();
 
 // ================================================================
