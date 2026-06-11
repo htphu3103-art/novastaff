@@ -283,7 +283,7 @@ WHERE ""ChatChannelID"" = {channelID} AND ""UserID"" = {userID};
 
         foreach (var member in members)
         {
-            member.IsOnline = _presence.IsOnline(member.UserID);
+            member.IsOnline = await _presence.IsOnlineAsync(member.UserID);
         }
 
         return members;

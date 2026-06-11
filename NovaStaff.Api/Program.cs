@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using NovaStaff.API.Hubs;
 using NovaStaff.BusinessLayers.Interfaces;
 using NovaStaff.BusinessLayers.Services;
 using NovaStaff.DataLayers;
@@ -10,17 +11,17 @@ using NovaStaff.DataLayers.Interceptors;
 using NovaStaff.DataLayers.Interfaces;
 using NovaStaff.DataLayers.Interfaces.Repositories;
 using NovaStaff.DataLayers.Repositories;
+using NovaStaff.Hubs;
+using NovaStaff.Infrastructure;
 using NovaStaff.Models.Common;
 using NovaStaff.Services;
-using NovaStaff.Hubs;
 using NovaStaff.Services.Interfaces;
+using NovaStaff.Web.Middlewares;
+using StackExchange.Redis;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Threading.RateLimiting;
-using NovaStaff.Web.Middlewares;
-using StackExchange.Redis;
-using NovaStaff.Infrastructure;
 var builder = WebApplication.CreateBuilder(args);
 
 // ================================================================
@@ -194,6 +195,7 @@ builder.Services.AddScoped<ILeaveRequestService, LeaveRequestService>();
 builder.Services.AddScoped<ILeaveCalculator, LeaveCalculator>();
 builder.Services.AddScoped<IPayrollService, PayrollService>();
 builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddScoped<IAttendanceNotifier, AttendanceNotifier>();
 // ================================================================
 // 5. JWT Authentication (PHáº¢I á» ÄĂ‚Y)
 // ================================================================
@@ -239,12 +241,10 @@ builder.Services.AddAuthentication(options =>
         OnMessageReceived = context =>
         {
             var accessToken = context.Request.Query["access_token"];
-
-            // Nếu request là từ SignalR Hub (có chữ chathub)
             var path = context.HttpContext.Request.Path;
-            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/chat"))
+
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
             {
-                // Trích xuất token từ query string để chứng thực
                 context.Token = accessToken;
             }
             return Task.CompletedTask;
@@ -281,7 +281,7 @@ app.UseMiddleware<TokenBlacklistMiddleware>();
 app.UseRateLimiter();
 app.UseAuthorization();
 
-
+app.MapHub<AttendanceHub>("/hubs/attendance");
 app.MapHub<ChatHub>("/hubs/chat");
 app.MapControllers();
 

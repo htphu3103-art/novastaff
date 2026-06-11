@@ -1,8 +1,9 @@
+﻿// API/Hubs/InMemoryPresenceTracker.cs
 using NovaStaff.BusinessLayers.Interfaces;
 
-namespace NovaStaff.Hubs;
+namespace NovaStaff.API.Hubs;
 
-public class PresenceTracker : IPresenceTracker
+public class InMemoryPresenceTracker : IPresenceTracker
 {
     private readonly Dictionary<int, HashSet<string>> _connections = new();
     private readonly object _lock = new();

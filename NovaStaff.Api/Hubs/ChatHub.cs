@@ -27,20 +27,19 @@ public class ChatHub : Hub
         var userID = GetUserID();
         Console.WriteLine($"[ChatHub] Connected: userID={userID}, connID={Context.ConnectionId}");
 
-        await _presence.UserConnected(userID, Context.ConnectionId);
+        // ✅ Thêm Async
+        await _presence.UserConnectedAsync(userID, Context.ConnectionId);
 
-        // Join tất cả SignalR groups tương ứng với channels của user
         var channels = await _chatService.GetChannelsForUserAsync(userID);
         foreach (var ch in channels)
             await Groups.AddToGroupAsync(Context.ConnectionId, GroupName(ch.ChatChannelID));
 
-        // Thông báo cho những người khác biết user này online
         await Clients.Others.SendAsync("UserOnline", userID);
 
-        // Gửi danh sách user đang online cho chính người vừa kết nối
-        var onlineUsers = _presence.GetOnlineUserIDs();
+        // ✅ Thêm await + Async
+        var onlineUsers = await _presence.GetOnlineUserIDsAsync();
         Console.WriteLine($"[ChatHub] OnlineUsers count: {onlineUsers.Length}");
-        
+
         await Clients.Caller.SendAsync("OnlineUsersList", onlineUsers);
 
         await base.OnConnectedAsync();
@@ -49,10 +48,12 @@ public class ChatHub : Hub
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         var userID = GetUserID();
-        await _presence.UserDisconnected(userID, Context.ConnectionId);
 
-        // Chỉ thông báo offline khi KHÔNG còn tab nào khác
-        if (!_presence.IsOnline(userID))
+        // ✅ Đổi sang tên mới
+        await _presence.UserDisconnectedAsync(userID, Context.ConnectionId);
+
+        // ✅ IsOnline cũng đổi sang async
+        if (!await _presence.IsOnlineAsync(userID))
             await Clients.Others.SendAsync("UserOffline", userID);
 
         await base.OnDisconnectedAsync(exception);
@@ -69,9 +70,9 @@ public class ChatHub : Hub
     }
 
     /// <summary>Danh sach user dang online.</summary>
-    public Task<int[]> GetOnlineUsers()
+    public async Task<int[]> GetOnlineUsers()
     {
-        return Task.FromResult(_presence.GetOnlineUserIDs());
+        return await _presence.GetOnlineUserIDsAsync();
     }
 
     /// <summary>Gui tin nhan moi.</summary>
