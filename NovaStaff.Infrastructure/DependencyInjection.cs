@@ -2,7 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NovaStaff.BusinessLayers.Interfaces.Redis;
 using NovaStaff.BusinessLayers.Services;
-using NovaStaff.Infrastructure.Activation; // ← thêm using
+using NovaStaff.Infrastructure.Activation; 
 using NovaStaff.Infrastructure.Cache;
 using NovaStaff.Infrastructure.Email;
 using NovaStaff.Infrastructure.Token;
@@ -40,6 +40,6 @@ public static class DependencyInjection
                                                                     
         services.AddScoped<IActivationTokenService, ActivationTokenService>();
         services.AddScoped<ITokenBlacklistService, RedisTokenBlacklistService>();
-        return services; // ← thiếu dòng này
+        return services; 
     }
 }

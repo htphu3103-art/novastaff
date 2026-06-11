@@ -277,9 +277,10 @@ if (app.Environment.IsDevelopment())
 app.UseCors("AllowReactApp");
 
 app.UseAuthentication();
+app.UseMiddleware<TokenBlacklistMiddleware>();
 app.UseRateLimiter();
 app.UseAuthorization();
-app.UseMiddleware<TokenBlacklistMiddleware>();
+
 
 app.MapHub<ChatHub>("/chathub");
 app.MapControllers();
