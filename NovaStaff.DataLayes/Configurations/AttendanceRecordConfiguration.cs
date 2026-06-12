@@ -37,20 +37,26 @@ public class AttendanceRecordConfiguration : IEntityTypeConfiguration<Attendance
 
         // -- WorkDate --
         builder.Property(a => a.WorkDate)
+            .HasColumnType("date")
             .IsRequired()
             .HasDefaultValueSql("CURRENT_DATE");
 
         // -- CheckIn / CheckOut --
-        builder.Property(a => a.CheckIn);
-        builder.Property(a => a.CheckOut);
+        builder.Property(a => a.CheckIn)
+            .HasColumnType("timestamptz");
+
+        builder.Property(a => a.CheckOut)
+           .HasColumnType("timestamptz");
 
         // -- WorkHours (Computed Column for PostgreSQL) --
         builder.Property(a => a.WorkHours)
-            .HasPrecision(5, 2)
-            .HasComputedColumnSql(
-                "CASE WHEN \"CheckIn\" IS NOT NULL AND \"CheckOut\" IS NOT NULL THEN (EXTRACT(EPOCH FROM (\"CheckOut\" - \"CheckIn\")) / 3600.0)::numeric(5,2) ELSE NULL END",
-                stored: true
-            );
+           .HasPrecision(5, 2)
+           .HasComputedColumnSql(
+               "CASE WHEN \"CheckIn\" IS NOT NULL AND \"CheckOut\" IS NOT NULL " +
+               "THEN (EXTRACT(EPOCH FROM (\"CheckOut\" - \"CheckIn\")) / 3600.0)::numeric(5,2) " +
+               "ELSE NULL END",
+               stored: true
+           );
 
         builder.Property(a => a.WorkHours)
             .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);

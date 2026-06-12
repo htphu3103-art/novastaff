@@ -25,7 +25,7 @@ public static class DatabaseSeeder
             Email = "admin@novastaff.com",
             BaseSalary = 0,
             Status = EmployeeStatus.Active,
-            JoinDate = DateTime.UtcNow,
+            JoinDate = DateOnly.FromDateTime(DateTime.UtcNow),
             Position = "System Administrator"
         };
 
@@ -40,7 +40,7 @@ public static class DatabaseSeeder
             PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@123456"),
             Role = UserRole.Admin,
             IsActive = true,
-            LastPasswordChange = DateTime.UtcNow
+            LastPasswordChange = DateTimeOffset.UtcNow
         };
 
         context.Users.Add(adminUser);

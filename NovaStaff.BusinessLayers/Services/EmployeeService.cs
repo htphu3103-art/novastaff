@@ -303,7 +303,8 @@ public class EmployeeService : IEmployeeService
                 JobLevel = request.JobLevel,
                 BaseSalary = request.BaseSalary,
                 ContractType = request.ContractType,
-                JoinDate = (request.JoinDate ?? _dateTimeService.UtcNow.Date),
+                JoinDate = request.JoinDate
+                            ?? DateOnly.FromDateTime(_dateTimeService.UtcNow.UtcDateTime),
                 Status = EmployeeStatus.Active
             };
 

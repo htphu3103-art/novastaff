@@ -169,7 +169,7 @@ builder.Services.AddDbContext<AppDbContext>((sp, options) =>
 // ================================================================
 builder.Services.AddScoped(typeof(IRepository<,>), typeof(GenericRepository<,>));
 builder.Services.AddSingleton<IDateTimeService, DateTimeService>();
-builder.Services.AddSingleton<NovaStaff.BusinessLayers.Interfaces.IPresenceTracker, NovaStaff.Hubs.PresenceTracker>();
+builder.Services.AddSingleton<IPresenceTracker, InMemoryPresenceTracker>();
 builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
 builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -181,6 +181,10 @@ builder.Services.AddScoped<IWorkTaskRepository, WorkTaskRepository>();
 builder.Services.AddScoped<IAttendanceRepository, AttendanceRepository>();
 builder.Services.AddScoped<ILeaveRequestRepository, LeaveRequestRepository>();
 builder.Services.AddScoped<IPayrollRepository, PayrollRepository>();
+
+builder.Services.AddSingleton<
+    ITimeZoneProvider,
+    TimeZoneProvider>();
 // ================================================================
 // 4. BUSINESS SERVICES
 // ================================================================
@@ -251,12 +255,14 @@ builder.Services.AddAuthentication(options =>
         }
     };
 });
-
+// Đăng ký AppOptions từ Configuration section "App"
+builder.Services.Configure<AppOptions>(
+    builder.Configuration.GetSection("App")
+);
 // ================================================================
 // 6. BUILD APP PIPELINE (TH? T? C?C K? QUAN TR?NG)
 // ================================================================
 var app = builder.Build();
-
 app.UseForwardedHeaders();
 
 // Middleware x? l? l?i toĂ n c?c nĂªn Ä‘?t Ä‘?u tiĂªn

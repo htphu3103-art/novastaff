@@ -24,7 +24,7 @@ public class AuditLog
     [MaxLength(100)]
     public string? ChangedBy { get; set; }
 
-    public DateTime ChangedDate { get; set; } = DateTime.UtcNow;
+    public DateTimeOffset ChangedDate { get; set; } = DateTimeOffset.UtcNow;
 
     [MaxLength(50)]
     public string? IPAddress { get; set; }

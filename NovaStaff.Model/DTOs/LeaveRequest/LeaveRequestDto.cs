@@ -1,5 +1,4 @@
-﻿// Models/DTOs/LeaveRequest/LeaveRequestDto.cs
-using NovaStaff.Models.Enums;
+﻿using NovaStaff.Models.Enums;
 
 namespace NovaStaff.Models.DTOs.LeaveRequest;
 
@@ -15,9 +14,9 @@ public class LeaveRequestDto
 
     public LeaveType LeaveType { get; set; }
 
-    public DateTime FromDate { get; set; }
+    public DateOnly FromDate { get; set; }
 
-    public DateTime ToDate { get; set; }
+    public DateOnly ToDate { get; set; }
 
     public double TotalDays { get; set; }
 
@@ -31,7 +30,7 @@ public class LeaveRequestDto
 
     public int? ApprovedBy { get; set; }
 
-    public DateTime? ApprovedDate { get; set; }
+    public DateTimeOffset? ApprovedDate { get; set; }
 
-    public DateTime CreatedDate { get; set; }
+    public DateTimeOffset CreatedDate { get; set; }
 }

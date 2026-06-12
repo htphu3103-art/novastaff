@@ -28,7 +28,7 @@ public class MessageDto
     public string Type { get; set; } = "Text";
     public int? ReplyToMessageID { get; set; }
     public bool IsDeleted { get; set; }
-    public DateTime SentAt { get; set; }
+    public DateTimeOffset SentAt { get; set; }
     public List<ReactionDto> Reactions { get; set; } = [];
     public List<AttachmentDto> Attachments { get; set; } = [];
 }

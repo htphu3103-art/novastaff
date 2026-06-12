@@ -19,8 +19,8 @@ public class AttendanceFilter
     public int? DepartmentId { get; set; }
 
     // ── Date range ────────────────────────────────────────
-    public DateTime? From { get; set; }
-    public DateTime? To { get; set; }
+    public DateOnly? From { get; set; }
+    public DateOnly? To { get; set; }
 
     // Shorthand: truyền Year+Month thay vì From/To
     // Service sẽ tự convert sang From/To nếu có

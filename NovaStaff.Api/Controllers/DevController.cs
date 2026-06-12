@@ -70,7 +70,7 @@ namespace NovaStaff.API.Controllers
                 Email = adminEmail,
                 Status = EmployeeStatus.Active,
                 BaseSalary = 0,
-                JoinDate = DateTime.UtcNow
+                JoinDate = DateOnly.FromDateTime(DateTime.UtcNow)
             };
             dbContext.Employees.Add(adminEmployee);
             await dbContext.SaveChangesAsync();

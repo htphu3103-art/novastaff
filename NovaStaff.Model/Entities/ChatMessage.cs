@@ -16,7 +16,7 @@ public class ChatMessage : BaseEntity
 
     // Soft delete (override BaseEntity nếu cần — ẩn nội dung thay vì xoá hẳn)
     public bool IsDeleted { get; set; } = false;
-    public DateTime? DeletedAt { get; set; }
+    public DateTimeOffset? DeletedAt { get; set; }
 
     // Navigation
     public virtual ChatChannel Channel { get; set; } = null!;

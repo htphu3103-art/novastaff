@@ -12,22 +12,25 @@ public class User : BaseEntity
 
     public UserRole Role { get; set; } = UserRole.Staff;
 
-    // ?? Activation
-    public bool IsActive { get; set; } = false; // ← thêm
+    // Activation
+    public bool IsActive { get; set; } = false;
 
-    // ?? Security
+    // Security
     public bool IsLocked { get; set; }
     public int FailedLoginAttempts { get; set; }
-    public DateTime? LockoutEnd { get; set; }
 
-    // ?? Tracking
-    public DateTime? LastLogin { get; set; }
-    public DateTime? LastPasswordChange { get; set; }
+    public DateTimeOffset? LockoutEnd { get; set; }
 
-    // 🗑️ Soft Delete — dùng khi Employee bị xóa, giữ lại lịch sử chat
+    // Tracking
+    public DateTimeOffset? LastLogin { get; set; }
+    public DateTimeOffset? LastPasswordChange { get; set; }
+
+    // Soft Delete
     public bool IsDeleted { get; set; } = false;
-    public DateTime? DeletedAt { get; set; }
+    public DateTimeOffset? DeletedAt { get; set; }
 
     public virtual Employee? Employee { get; set; } = null;
-    public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+
+    public virtual ICollection<RefreshToken> RefreshTokens { get; set; }
+        = new List<RefreshToken>();
 }

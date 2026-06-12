@@ -9,7 +9,7 @@ public class Employee : BaseEntity
     public string EmployeeCode { get; set; } = null!;
     public string FullName { get; set; } = null!;
     public GenderType Gender { get; set; } = GenderType.Other;
-    public DateTime? BirthDate { get; set; }
+    public DateOnly? BirthDate { get; set; }
     public string Email { get; set; } = null!;
     public string? Phone { get; set; }
     public string? Address { get; set; }
@@ -24,7 +24,7 @@ public class Employee : BaseEntity
     public string? Position { get; set; }
     public int? JobLevel { get; set; }
     public decimal BaseSalary { get; set; }
-    public DateTime? JoinDate { get; set; }
+    public DateOnly? JoinDate { get; set; }
     public string? ContractType { get; set; }
     public EmployeeStatus Status { get; set; }
 

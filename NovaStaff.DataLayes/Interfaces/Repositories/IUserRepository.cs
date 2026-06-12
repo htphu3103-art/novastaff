@@ -57,15 +57,20 @@ public interface IUserRepository : IRepository<User, int>
 
     Task<User?> GetForLoginByEmailAsync(string email, CancellationToken ct = default);
 
-    Task<(bool Exists, bool IsLocked, DateTime? LockoutEnd)>
-        GetAuthStatusByEmailAsync(string email, CancellationToken ct = default);
+    Task<(bool Exists, bool IsLocked, DateTimeOffset? LockoutEnd)>
+    GetAuthStatusByEmailAsync(
+        string email,
+        CancellationToken ct = default);
 
     // 🔒 Security
     Task IncrementFailedAttemptsAsync(int userId, CancellationToken ct = default);
 
     Task ResetLoginStateAsync(int userId, CancellationToken ct = default);
 
-    Task LockUserAsync(int userId, DateTime lockoutEnd, CancellationToken ct = default);
+    Task LockUserAsync(
+    int userId,
+    DateTimeOffset lockoutEnd,
+    CancellationToken ct = default);
 
     Task UpdatePasswordAsync(int userId, string passwordHash, CancellationToken ct = default);
 
@@ -129,7 +134,7 @@ public interface IUserRepository : IRepository<User, int>
     /// Gọi trước _userRepo.Delete(user) nếu muốn hard-delete, 
     /// hoặc thay thế Delete() để chỉ soft-delete.
     /// </summary>
-    Task SoftDeleteChatUserAsync(int userId, CancellationToken ct = default);
+    Task SoftDeleteChatUserAsync(int userId, DateTimeOffset deletedAt, CancellationToken ct = default);
 
     Task LockAsync(int userId, CancellationToken ct = default);
 

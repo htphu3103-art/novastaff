@@ -6,7 +6,7 @@ using NovaStaff.Models.Enums;
 namespace NovaStaff.Models.Entities;
 
 [Table("WorkTasks")]
-public class WorkTask : BaseEntity // ? K? th?a BaseEntity ð? dùng chung c?u trúc Audit
+public class WorkTask : BaseEntity 
 {
     [Key]
     public int TaskID { get; set; }
@@ -17,9 +17,9 @@ public class WorkTask : BaseEntity // ? K? th?a BaseEntity ð? dùng chung c?u trú
 
     public string? Description { get; set; }
 
-    public DateTime? DueDate { get; set; }
+    public DateTimeOffset? DueDate { get; set; }
 
-    public DateTime? CompletedDate { get; set; }
+    public DateTimeOffset? CompletedDate { get; set; }
 
     // --- Enums ---
     public WorkTaskStatus Status { get; set; } = WorkTaskStatus.Todo;

@@ -10,11 +10,14 @@ public class AttendanceRepository
     : GenericRepository<AttendanceRecord, long>, IAttendanceRepository
 {
     private readonly IDateTimeService _dateTimeService;
-
-    public AttendanceRepository(AppDbContext context, IDateTimeService dateTimeService)
+    private readonly ITimeZoneProvider _timeZoneProvider;
+    public AttendanceRepository(AppDbContext context,
+                                IDateTimeService dateTimeService,
+                                ITimeZoneProvider timeZoneProvider)
         : base(context)
     {
         _dateTimeService = dateTimeService;
+        _timeZoneProvider = timeZoneProvider;
     }
 
     // =========================================================
@@ -27,10 +30,8 @@ public class AttendanceRepository
         int month,
         CancellationToken ct = default)
     {
-        // Tính khoảng ngày để EF sinh ra range query thay vì YEAR()/MONTH()
-        // => index-friendly, tránh function scan
-        var from = new DateTime(year, month, 1);
-        var to = from.AddMonths(1); // exclusive upper bound
+        var from = new DateOnly(year, month, 1);
+        var to = from.AddMonths(1);
 
         return await _dbSet
             .AsNoTracking()
@@ -46,19 +47,19 @@ public class AttendanceRepository
     // =========================================================
 
     public async Task<AttendanceRecord?> GetTodayAsync(
-        int employeeId,
-        CancellationToken ct = default)
+    int employeeId,
+    CancellationToken ct = default)
     {
-        // Dùng LocalNow (giờ VN) tránh edge case timezone
-        var today = _dateTimeService.LocalNow.Date;
+        var today = _timeZoneProvider.TodayLocal;
         var tomorrow = today.AddDays(1);
 
         return await _dbSet
             .AsNoTracking()
-            .Where(a => a.EmployeeID == employeeId
-                     && a.WorkDate >= today
-                     && a.WorkDate < tomorrow)
-            .FirstOrDefaultAsync(ct);
+            .FirstOrDefaultAsync(a =>
+                a.EmployeeID == employeeId &&
+                a.WorkDate >= today &&
+                a.WorkDate < tomorrow,
+                ct);
     }
 
     // =========================================================
@@ -66,15 +67,14 @@ public class AttendanceRepository
     // =========================================================
 
     public async Task<double> GetTotalHoursAsync(
-        int employeeId,
-        int year,
-        int month,
-        CancellationToken ct = default)
+     int employeeId,
+     int year,
+     int month,
+     CancellationToken ct = default)
     {
-        var from = new DateTime(year, month, 1);
+        var from = new DateOnly(year, month, 1);
         var to = from.AddMonths(1);
 
-        // SUM trả về null nếu không có row nào → ?? 0 để tránh NullReferenceException
         var total = await _dbSet
             .AsNoTracking()
             .Where(a => a.EmployeeID == employeeId

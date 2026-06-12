@@ -86,7 +86,7 @@ public interface IWorkTaskRepository : IRepository<WorkTask, int>
     ///   - OrderBy default: Priority DESC, DueDate ASC
     /// </summary>
     Task<PagedResult<WorkTask>> GetOverduePagedAsync(
-        DateTime now,
+        DateTimeOffset now,
         int pageIndex,
         int pageSize,
         Expression<Func<WorkTask, bool>>? predicate = null,

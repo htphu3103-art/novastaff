@@ -9,8 +9,10 @@ namespace NovaStaff.DataLayers.Repositories
 {
     public sealed class DateTimeService : IDateTimeService
     {
-        public DateTime UtcNow => DateTime.UtcNow;
+        // ✅ DateTime → DateTimeOffset
+        public DateTimeOffset UtcNow => DateTimeOffset.UtcNow;
 
-        public DateTime LocalNow => DateTime.Now;
+        // ✅ Tiện dùng khi chỉ cần ngày, không cần giờ
+        public DateOnly TodayUtc => DateOnly.FromDateTime(DateTime.UtcNow);
     }
 }

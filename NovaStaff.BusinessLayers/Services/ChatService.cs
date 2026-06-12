@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using NovaStaff.BusinessLayers.Interfaces;
 using NovaStaff.DataLayers;
+using NovaStaff.DataLayers.Interfaces;
 using NovaStaff.Models.DTOs.Chat;
 using NovaStaff.Models.Entities;
 using NovaStaff.Models.Enums;
@@ -14,11 +15,13 @@ public class ChatService : IChatService
 {
     private readonly AppDbContext _db;
     private readonly IPresenceTracker _presence;
+    private readonly IDateTimeService _dateTimeService;
 
-    public ChatService(AppDbContext db, IPresenceTracker presence)
+    public ChatService(AppDbContext db, IPresenceTracker presence, IDateTimeService dateTimeService)
     {
         _db = db;
         _presence = presence;
+        _dateTimeService = dateTimeService;
     }
 
     // Ă¢â€â‚¬Ă¢â€â‚¬ Channels Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬
@@ -81,7 +84,7 @@ public class ChatService : IChatService
             ChatChannelID = channel.ChatChannelID,
             UserID = uid,
             Role = uid == creatorUserID ? ChatMemberRole.Admin : ChatMemberRole.Member,
-            JoinedAt = DateTime.UtcNow
+            JoinedAt = _dateTimeService.UtcNow
         });
 
         _db.ChatMembers.AddRange(members);
@@ -123,17 +126,28 @@ public class ChatService : IChatService
         _db.ChatChannels.Add(channel);
         await _db.SaveChangesAsync();
 
+        var now = _dateTimeService.UtcNow;
+
         _db.ChatMembers.AddRange([
-            new ChatMember { ChatChannelID = channel.ChatChannelID, UserID = userID, JoinedAt = DateTime.UtcNow },
-            new ChatMember { ChatChannelID = channel.ChatChannelID, UserID = targetUserID, JoinedAt = DateTime.UtcNow }
+            new ChatMember
+    {
+        ChatChannelID = channel.ChatChannelID,
+        UserID = userID,
+        JoinedAt = now
+    },
+    new ChatMember
+    {
+        ChatChannelID = channel.ChatChannelID,
+        UserID = targetUserID,
+        JoinedAt = now
+    }
         ]);
         await _db.SaveChangesAsync();
 
         return new ChannelDto { ChatChannelID = channel.ChatChannelID, Name = targetEmployee, Type = "Direct" };
     }
 
-    // Ă¢â€â‚¬Ă¢â€â‚¬ Messages Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬
-
+    
     public async Task<MessagePageResult> GetMessagesAsync(
         int channelID, int userID, int pageSize = 30, int? beforeMessageID = null)
     {
@@ -160,7 +174,7 @@ public class ChatService : IChatService
         var hasMore = messages.Count > pageSize;
         if (hasMore) messages.RemoveAt(messages.Count - 1);
 
-        messages.Reverse(); // trĂ¡ÂºÂ£ vĂ¡Â»Â thĂ¡Â»Â© tĂ¡Â»Â± cĂ…Â© Ă¢â€ â€™ mĂ¡Â»â€ºi
+        messages.Reverse();
 
         return new MessagePageResult
         {
@@ -185,7 +199,6 @@ public class ChatService : IChatService
         _db.ChatMessages.Add(message);
         await _db.SaveChangesAsync();
 
-        // Load lĂ¡ÂºÂ¡i Ă„â€˜Ă¡Â»Æ’ cÄ‚Â³ navigation properties
         var saved = await _db.ChatMessages
             .Include(m => m.Sender).ThenInclude(u => u.Employee)
             .Include(m => m.Reactions)
@@ -205,7 +218,7 @@ public class ChatService : IChatService
             throw new UnauthorizedAccessException("BĂ¡ÂºÂ¡n khÄ‚Â´ng cÄ‚Â³ quyĂ¡Â»Ân xoÄ‚Â¡ tin nhĂ¡ÂºÂ¯n nÄ‚Â y.");
 
         message.IsDeleted = true;
-        message.DeletedAt = DateTime.UtcNow;
+        message.DeletedAt = _dateTimeService.UtcNow;
         message.Content = "[Tin nhĂ¡ÂºÂ¯n Ă„â€˜Ä‚Â£ bĂ¡Â»â€¹ xoÄ‚Â¡]";
         await _db.SaveChangesAsync();
         return true;
@@ -232,7 +245,7 @@ WHERE ""ChatChannelID"" = {channelID} AND ""UserID"" = {userID};
             return;
         }
 
-        member.LastReadAt = DateTime.UtcNow;
+        member.LastReadAt = _dateTimeService.UtcNow;
         await _db.SaveChangesAsync();
     }
 

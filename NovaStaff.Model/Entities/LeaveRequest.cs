@@ -13,30 +13,28 @@ public class LeaveRequest : BaseEntity
     public LeaveType LeaveType { get; set; }
 
     [Required]
-    public DateTime FromDate { get; set; }
+    public DateOnly FromDate { get; set; }
 
     [Required]
-    public DateTime ToDate { get; set; }
+    public DateOnly ToDate { get; set; }
 
     /// <summary>
     /// Số ngày nghỉ thực tế (đã trừ weekend, holiday, hỗ trợ half-day)
     /// </summary>
     public double TotalDays { get; set; }
 
-    /// <summary>
-    /// Có thể mở rộng: nghỉ nửa ngày
-    /// </summary>
     public bool IsHalfDayStart { get; set; }
 
     public bool IsHalfDayEnd { get; set; }
 
     public string? Reason { get; set; }
 
-    public LeaveRequestStatus Status { get; set; } = LeaveRequestStatus.Pending;
+    public LeaveRequestStatus Status { get; set; }
+        = LeaveRequestStatus.Pending;
 
     public int? ApprovedBy { get; set; }
 
-    public DateTime? ApprovedDate { get; set; }
+    public DateTimeOffset? ApprovedDate { get; set; }
 
     public virtual Employee? Employee { get; set; }
 }

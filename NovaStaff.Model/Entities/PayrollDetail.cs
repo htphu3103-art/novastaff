@@ -27,7 +27,7 @@ namespace NovaStaff.Models.Entities
         public decimal NetSalary { get; set; }
 
         public PayrollStatus Status { get; set; } = PayrollStatus.Draft;
-        public DateTime? PaidDate { get; set; }
+        public DateTimeOffset? PaidDate { get; set; }
 
         // ?? JSON helpers — NotMapped, không lýu vào DB ?????????????????????????
 

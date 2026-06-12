@@ -14,7 +14,7 @@ public class UpdateWorkTaskRequest
     [Required(ErrorMessage = "Vui lòng chọn độ ưu tiên")]
     public WorkTaskPriority Priority { get; set; }
 
-    public DateTime? DueDate { get; set; }
+    public DateTimeOffset? DueDate { get; set; }
 
     public int? EmployeeId { get; set; }
 

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using NovaStaff.DataLayers.Interfaces;
 using NovaStaff.DataLayers.Interfaces.Repositories;
 using NovaStaff.Models.Entities;
 using System;
@@ -10,8 +11,13 @@ namespace NovaStaff.DataLayers.Repositories;
 
 public class UserRepository : GenericRepository<User, int>, IUserRepository
 {
-    public UserRepository(AppDbContext context) : base(context)
+    private readonly IDateTimeService _dateTimeService;
+
+    public UserRepository(
+        AppDbContext context,
+        IDateTimeService dateTimeService) : base(context)
     {
+        _dateTimeService = dateTimeService;
     }
 
     public async Task<User?> GetForLoginByEmailAsync(string email, CancellationToken ct = default)
@@ -22,12 +28,19 @@ public class UserRepository : GenericRepository<User, int>, IUserRepository
             .FirstOrDefaultAsync(u => u.Employee != null && u.Employee.Email == email, ct);
     }
 
-    public async Task<(bool Exists, bool IsLocked, DateTime? LockoutEnd)> GetAuthStatusByEmailAsync(string email, CancellationToken ct = default)
+    public async Task<(bool Exists, bool IsLocked, DateTimeOffset? LockoutEnd)>
+    GetAuthStatusByEmailAsync(
+        string email,
+        CancellationToken ct = default)
     {
         var status = await _dbSet
             .AsNoTracking()
             .Where(u => u.Employee != null && u.Employee.Email == email)
-            .Select(u => new { u.IsLocked, u.LockoutEnd })
+            .Select(u => new
+            {
+                u.IsLocked,
+                u.LockoutEnd
+            })
             .FirstOrDefaultAsync(ct);
 
         if (status == null)
@@ -44,23 +57,30 @@ public class UserRepository : GenericRepository<User, int>, IUserRepository
                 .SetProperty(u => u.FailedLoginAttempts, u => u.FailedLoginAttempts + 1), ct);
     }
 
-    public async Task ResetLoginStateAsync(int userId, CancellationToken ct = default)
+    public async Task ResetLoginStateAsync(
+    int userId,
+    CancellationToken ct = default)
     {
         await _dbSet
             .Where(u => u.UserID == userId)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(u => u.FailedLoginAttempts, 0)
                 .SetProperty(u => u.IsLocked, false)
-                .SetProperty(u => u.LockoutEnd, (DateTime?)null), ct);
+                .SetProperty(u => u.LockoutEnd, (DateTimeOffset?)null),
+                ct);
     }
 
-    public async Task LockUserAsync(int userId, DateTime lockoutEnd, CancellationToken ct = default)
+    public async Task LockUserAsync(
+    int userId,
+    DateTimeOffset lockoutEnd,
+    CancellationToken ct = default)
     {
         await _dbSet
             .Where(u => u.UserID == userId)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(u => u.IsLocked, true)
-                .SetProperty(u => u.LockoutEnd, lockoutEnd), ct);
+                .SetProperty(u => u.LockoutEnd, lockoutEnd),
+                ct);
     }
 
     public async Task UpdatePasswordAsync(int userId, string passwordHash, CancellationToken ct = default)
@@ -69,7 +89,7 @@ public class UserRepository : GenericRepository<User, int>, IUserRepository
             .Where(u => u.UserID == userId)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(u => u.PasswordHash, passwordHash)
-                .SetProperty(u => u.LastPasswordChange, DateTime.UtcNow), ct);
+                .SetProperty(u => u.LastPasswordChange, _dateTimeService.UtcNow));
     }
 
     public async Task<User?> GetByUsernameAsync(string username, bool trackChanges = false, Func<IQueryable<User>, IQueryable<User>>? include = null, CancellationToken ct = default)
@@ -112,26 +132,23 @@ public class UserRepository : GenericRepository<User, int>, IUserRepository
             .FirstOrDefaultAsync(ct);
     }
 
-    public async Task SoftDeleteChatUserAsync(int userId, CancellationToken ct = default)
+    public async Task SoftDeleteChatUserAsync(
+    int userId,
+    DateTimeOffset deletedAt,
+    CancellationToken ct = default)
     {
-        // 1. Soft-delete user: đánh dấu IsDeleted, xóa EmployeeID (orphan),
-        //    thu hồi quyền truy cập bằng cách deactivate
         await _dbSet
             .Where(u => u.UserID == userId)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(u => u.IsDeleted, true)
-                .SetProperty(u => u.DeletedAt, DateTime.UtcNow)
+                .SetProperty(u => u.DeletedAt, deletedAt)
                 .SetProperty(u => u.IsActive, false)
                 .SetProperty(u => u.EmployeeID, (int?)null),
             ct);
 
-        // 2. Xóa tất cả ChatMember để user rời mọi kênh chat
-        //    (ChatMessage + MessageReaction giữ nguyên để lịch sử còn đó)
-        await _context.Set<NovaStaff.Models.Entities.ChatMember>()
+        await _context.Set<ChatMember>()
             .Where(cm => cm.UserID == userId)
             .ExecuteDeleteAsync(ct);
-
-
     }
     public async Task LockAsync(
     int userId,
@@ -141,19 +158,19 @@ public class UserRepository : GenericRepository<User, int>, IUserRepository
             .Where(x => x.UserID == userId)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(x => x.IsLocked, true)
-                .SetProperty(x => x.LockoutEnd, DateTime.MaxValue),
+                .SetProperty(x => x.LockoutEnd, DateTimeOffset.MaxValue),
                 ct);
     }
 
     public async Task UnlockAsync(
-        int userId,
-        CancellationToken ct = default)
+    int userId,
+    CancellationToken ct = default)
     {
         await _dbSet
             .Where(x => x.UserID == userId)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(x => x.IsLocked, false)
-                .SetProperty(x => x.LockoutEnd, (DateTime?)null),
+                .SetProperty(x => x.LockoutEnd, (DateTimeOffset?)null),
                 ct);
     }
 }

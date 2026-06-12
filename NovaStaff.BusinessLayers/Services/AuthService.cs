@@ -47,7 +47,8 @@ public class AuthService : IAuthService
 
         if (!user.IsActive)
             throw new UnauthorizedAccessException("Tài khoản chưa được kích hoạt. Vui lòng kiểm tra email.");
-        var now = _clock.UtcNow;
+
+        var now = _clock.UtcNow.UtcDateTime; // 🔥 FIX 1
 
         if (user.IsLocked && user.LockoutEnd > now)
             throw new UnauthorizedAccessException("Account is locked");
@@ -62,7 +63,8 @@ public class AuthService : IAuthService
         }
 
         await _userRepo.ResetLoginStateAsync(user.UserID);
-        user.LastLogin = now;
+
+        user.LastLogin = now; // ✔ OK
 
         var accessToken = _tokenService.GenerateAccessToken(user);
         var refreshTokenValue = _tokenService.GenerateRefreshToken();
