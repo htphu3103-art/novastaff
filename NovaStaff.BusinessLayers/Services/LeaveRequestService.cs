@@ -2,6 +2,7 @@
 using NovaStaff.BusinessLayers.Interfaces;
 using NovaStaff.DataLayers.Interfaces;
 using NovaStaff.DataLayers.Interfaces.Repositories;
+using NovaStaff.DataLayers.Repositories;
 using NovaStaff.Models.DTOs.LeaveRequest;
 using NovaStaff.Models.Entities;
 using NovaStaff.Models.Enums;
@@ -16,14 +17,15 @@ public class LeaveRequestService : ILeaveRequestService
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserService _currentUser;
     private readonly ILeaveCalculator _calculator;
-
+    private readonly IDateTimeService _dateTimeService;
     public LeaveRequestService(
-        ILeaveRequestRepository repo,
-        IEmployeeRepository employeeRepo,
-        IUserRepository userRepo,
-        IUnitOfWork uow,
-        ICurrentUserService currentUser,
-        ILeaveCalculator calculator)
+    ILeaveRequestRepository repo,
+    IEmployeeRepository employeeRepo,
+    IUserRepository userRepo,
+    IUnitOfWork uow,
+    ICurrentUserService currentUser,
+    ILeaveCalculator calculator,
+    IDateTimeService dateTimeService)
     {
         _repo = repo;
         _employeeRepo = employeeRepo;
@@ -31,6 +33,7 @@ public class LeaveRequestService : ILeaveRequestService
         _uow = uow;
         _currentUser = currentUser;
         _calculator = calculator;
+        _dateTimeService = dateTimeService;
     }
 
     // =========================================================
@@ -162,7 +165,7 @@ public class LeaveRequestService : ILeaveRequestService
 
         entity.Status = LeaveRequestStatus.Approved;
         entity.ApprovedBy = approverId;
-        entity.ApprovedDate = DateTime.UtcNow;
+        entity.ApprovedDate = _dateTimeService.UtcNow;
 
         _repo.Update(entity);
         await _uow.SaveChangesAsync(ct);
@@ -182,7 +185,7 @@ public class LeaveRequestService : ILeaveRequestService
 
         entity.Status = LeaveRequestStatus.Rejected;
         entity.ApprovedBy = approverId;
-        entity.ApprovedDate = DateTime.UtcNow;
+        DateOnly.FromDateTime(_dateTimeService.UtcNow.DateTime);
         entity.Reason = reason;
 
         _repo.Update(entity);

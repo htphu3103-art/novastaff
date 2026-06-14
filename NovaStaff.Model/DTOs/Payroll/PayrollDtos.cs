@@ -13,8 +13,8 @@ public class PayrollPeriodSummaryDto
     public int PeriodID { get; set; }
     public int Month { get; set; }
     public int Year { get; set; }
-    public DateTime StartDate { get; set; }
-    public DateTime EndDate { get; set; }
+    public DateOnly StartDate { get; set; }
+    public DateOnly EndDate { get; set; }
     public PayrollStatus Status { get; set; }
     public int TotalEmployees { get; set; }
     public decimal TotalNetSalary { get; set; }
@@ -25,8 +25,8 @@ public class PayrollPeriodDetailDto
     public int PeriodID { get; set; }
     public int Month { get; set; }
     public int Year { get; set; }
-    public DateTime StartDate { get; set; }
-    public DateTime EndDate { get; set; }
+    public DateOnly StartDate { get; set; }
+    public DateOnly EndDate { get; set; }
     public PayrollStatus Status { get; set; }
     public List<PayrollDetailDto> Details { get; set; } = [];
 }
@@ -35,8 +35,8 @@ public class CreatePayrollPeriodRequest
 {
     public int Month { get; set; }
     public int Year { get; set; }
-    public DateTime StartDate { get; set; }
-    public DateTime EndDate { get; set; }
+    public DateOnly StartDate { get; set; }
+    public DateOnly EndDate { get; set; }
 }
 
 public class AdvancePeriodStatusRequest
@@ -64,7 +64,7 @@ public class PayrollDetailDto
     public decimal TotalIncome { get; set; }
     public decimal NetSalary { get; set; }
     public PayrollStatus Status { get; set; }
-    public DateTime? PaidDate { get; set; }
+    public DateTimeOffset? PaidDate { get; set; }
 }
 
 public class CalculatePayrollDetailRequest

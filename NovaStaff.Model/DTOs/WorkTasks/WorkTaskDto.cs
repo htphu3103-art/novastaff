@@ -13,12 +13,12 @@ public class WorkTaskDto
     public string? Description { get; set; }
     public string Status { get; set; } = null!;
     public string Priority { get; set; } = null!;
-    public DateTime? DueDate { get; set; }
-    public DateTime CreatedDate { get; set; }
+    public DateTimeOffset? DueDate { get; set; }
+    public DateTimeOffset CreatedDate { get; set; }
 
     // Thông tin người được giao việc
     public int? EmployeeId { get; set; }
 
-    public DateTime? CompletedDate { get; set; }
+    public DateTimeOffset? CompletedDate { get; set; }
     public string? AssigneeName { get; set; }
 }

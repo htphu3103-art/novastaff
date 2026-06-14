@@ -1,5 +1,4 @@
-﻿// Models/DTOs/LeaveRequest/CreateLeaveRequest.cs
-using NovaStaff.Models.Enums;
+﻿using NovaStaff.Models.Enums;
 using System.ComponentModel.DataAnnotations;
 
 namespace NovaStaff.Models.DTOs.LeaveRequest;
@@ -13,10 +12,10 @@ public class CreateLeaveRequest
     public LeaveType LeaveType { get; set; }
 
     [Required]
-    public DateTime FromDate { get; set; }
+    public DateOnly FromDate { get; set; }
 
     [Required]
-    public DateTime ToDate { get; set; }
+    public DateOnly ToDate { get; set; }
 
     public bool IsHalfDayStart { get; set; }
 

@@ -32,20 +32,8 @@ namespace NovaStaff.DataLayers.Interfaces;
 /// </summary>
 public interface IDateTimeService
 {
-    /// <summary>
-    /// Th?i gian hi?n t?i theo UTC — dùng ð? lýu vào DB.
-    /// LUÔN lýu UTC vào DB, ch? convert sang local time khi hi?n th? cho user.
-    /// L? do: server có th? ð?t ? múi gi? khác client, DB không nên ph? thu?c timezone.
-    /// </summary>
-    DateTime UtcNow { get; }
-
-    /// <summary>
-    /// Th?i gian hi?n t?i theo múi gi? local c?a server.
-    /// Dùng cho các nghi?p v? ph? thu?c gi? ð?a phýõng:
-    ///   - Ch?m công: "hôm nay" theo gi? Vi?t Nam, không ph?i UTC.
-    ///   - Báo cáo tháng: tháng 1/2025 theo VN time, không ph?i UTC.
-    /// </summary>
-    DateTime LocalNow { get; }
+    DateTimeOffset UtcNow { get; }
+    DateOnly TodayUtc { get; }
 }
 
 

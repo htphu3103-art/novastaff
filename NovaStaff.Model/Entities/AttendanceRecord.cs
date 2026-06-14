@@ -9,9 +9,9 @@ public class AttendanceRecord : BaseEntity
 {
     public long RecordID { get; set; }
     public int? EmployeeID { get; set; }
-    public DateTime WorkDate { get; set; }
-    public DateTime? CheckIn { get; set; }
-    public DateTime? CheckOut { get; set; }
+    public DateOnly WorkDate { get; set; }
+    public DateTimeOffset? CheckIn { get; set; }
+    public DateTimeOffset? CheckOut { get; set; }
     public decimal? WorkHours { get; private set; } 
     public AttendanceStatus Status { get; set; }
     public string? Note { get; set; }

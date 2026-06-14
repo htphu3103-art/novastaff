@@ -120,7 +120,7 @@ public class WorkTaskService : IWorkTaskService
     public async Task<PagedResult<WorkTaskDto>> GetOverdueTasksAsync(
         int pageIndex, int pageSize, CancellationToken ct = default)
     {
-        var now = _dateTimeService.LocalNow;
+        var now = _dateTimeService.UtcNow;
         var result = await _workTaskRepo.GetOverduePagedAsync(
             now, pageIndex, pageSize,
             include: q => q.Include(x => x.Employee),
@@ -167,7 +167,7 @@ public class WorkTaskService : IWorkTaskService
             Priority = request.Priority,
             DueDate = request.DueDate,
             EmployeeID = request.EmployeeId,
-            CreatedDate = _dateTimeService.LocalNow
+            CreatedDate = _dateTimeService.UtcNow
         };
 
         await _workTaskRepo.AddAsync(task, ct);
@@ -236,7 +236,7 @@ public class WorkTaskService : IWorkTaskService
         if (task.CompletedDate.HasValue)
             return;
 
-        var completedDate = _dateTimeService.LocalNow;
+        var completedDate = _dateTimeService.UtcNow;
         task.CompletedDate = completedDate;
 
         _workTaskRepo.Update(task);

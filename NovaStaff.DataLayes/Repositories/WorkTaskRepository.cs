@@ -56,7 +56,7 @@ public class WorkTaskRepository : GenericRepository<WorkTask, int>, IWorkTaskRep
     }
 
     public async Task<PagedResult<WorkTask>> GetOverduePagedAsync(
-        DateTime now,
+        DateTimeOffset now,
         int pageIndex,
         int pageSize,
         Expression<Func<WorkTask, bool>>? predicate = null,

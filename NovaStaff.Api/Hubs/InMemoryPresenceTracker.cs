@@ -6,11 +6,12 @@ namespace NovaStaff.API.Hubs;
 public class InMemoryPresenceTracker : IPresenceTracker
 {
     private readonly Dictionary<int, HashSet<string>> _connections = new();
-    private readonly object _lock = new();
+    private readonly SemaphoreSlim _semaphore = new(1, 1); // thay lock
 
-    public Task UserConnectedAsync(int userID, string connectionId)
+    public async Task UserConnectedAsync(int userID, string connectionId)
     {
-        lock (_lock)
+        await _semaphore.WaitAsync();
+        try
         {
             if (!_connections.TryGetValue(userID, out var conns))
             {
@@ -19,12 +20,16 @@ public class InMemoryPresenceTracker : IPresenceTracker
             }
             conns.Add(connectionId);
         }
-        return Task.CompletedTask;
+        finally
+        {
+            _semaphore.Release();
+        }
     }
 
-    public Task UserDisconnectedAsync(int userID, string connectionId)
+    public async Task UserDisconnectedAsync(int userID, string connectionId)
     {
-        lock (_lock)
+        await _semaphore.WaitAsync();
+        try
         {
             if (_connections.TryGetValue(userID, out var conns))
             {
@@ -32,19 +37,35 @@ public class InMemoryPresenceTracker : IPresenceTracker
                 if (conns.Count == 0) _connections.Remove(userID);
             }
         }
-        return Task.CompletedTask;
+        finally
+        {
+            _semaphore.Release();
+        }
     }
 
-    public Task<bool> IsOnlineAsync(int userID)
+    public async Task<bool> IsOnlineAsync(int userID)
     {
-        lock (_lock)
-            return Task.FromResult(
-                _connections.TryGetValue(userID, out var conns) && conns.Count > 0);
+        await _semaphore.WaitAsync();
+        try
+        {
+            return _connections.TryGetValue(userID, out var conns) && conns.Count > 0;
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
     }
 
-    public Task<int[]> GetOnlineUserIDsAsync()
+    public async Task<int[]> GetOnlineUserIDsAsync()
     {
-        lock (_lock)
-            return Task.FromResult(_connections.Keys.ToArray());
+        await _semaphore.WaitAsync();
+        try
+        {
+            return _connections.Keys.ToArray();
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
     }
 }

@@ -13,7 +13,7 @@ public record CreateEmployeeRequest
 
     public GenderType Gender { get; init; } = GenderType.Other;
 
-    public DateTime? BirthDate { get; init; }                 // ← BirthDate
+    public DateOnly? BirthDate { get; init; }
 
     [Required(ErrorMessage = "Email không được để trống.")]
     [MaxLength(150, ErrorMessage = "Email tối đa 150 ký tự.")]
@@ -21,7 +21,7 @@ public record CreateEmployeeRequest
     public string Email { get; init; } = string.Empty;
 
     [MaxLength(20, ErrorMessage = "Số điện thoại tối đa 20 ký tự.")]
-    public string? Phone { get; init; }                       // ← Phone
+    public string? Phone { get; init; }
 
     [MaxLength(300, ErrorMessage = "Địa chỉ tối đa 300 ký tự.")]
     public string? Address { get; init; }
@@ -35,9 +35,9 @@ public record CreateEmployeeRequest
     public int? JobLevel { get; init; }
 
     [Range(0, double.MaxValue, ErrorMessage = "Lương cơ bản không được âm.")]
-    public decimal BaseSalary { get; init; } = 0;
+    public decimal BaseSalary { get; init; }
 
-    public DateTime? JoinDate { get; init; }                  // ← JoinDate
+    public DateOnly? JoinDate { get; init; }
 
     [MaxLength(50, ErrorMessage = "Loại hợp đồng tối đa 50 ký tự.")]
     public string? ContractType { get; init; }

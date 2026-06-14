@@ -9,10 +9,10 @@ public class ChatMember : BaseEntity
     public int ChatChannelID { get; set; }
     public int UserID { get; set; }
     public ChatMemberRole Role { get; set; } = ChatMemberRole.Member;
-    public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
+    public DateTimeOffset JoinedAt { get; set; } = DateTimeOffset.UtcNow;
 
     // Lưu thời điểm user đọc tin nhắn cuối — dùng cho unread count
-    public DateTime? LastReadAt { get; set; }
+    public DateTimeOffset? LastReadAt { get; set; }
 
     // Navigation
     public virtual ChatChannel Channel { get; set; } = null!;

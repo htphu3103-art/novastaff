@@ -524,19 +524,11 @@ public class PayrollService : IPayrollService
     /// Hiện tại fallback về StandardWorkDays.
     /// </summary>
     private async Task<decimal> GetActualWorkDaysAsync(
-        int employeeId,
-        DateTime startDate,
-        DateTime endDate,
-        CancellationToken ct)
+    int employeeId,
+    DateOnly startDate,
+    DateOnly endDate,
+    CancellationToken ct)
     {
-        // var count = await _uow.Repository<AttendanceRecord, long>()
-        //     .CountAsync(a =>
-        //         a.EmployeeID == employeeId &&
-        //         a.Date >= DateOnly.FromDateTime(startDate) &&
-        //         a.Date <= DateOnly.FromDateTime(endDate) &&
-        //         a.Status == AttendanceStatus.Present, ct);
-        // return count > 0 ? count : StandardWorkDays;
-
         await Task.CompletedTask;
         return StandardWorkDays;
     }

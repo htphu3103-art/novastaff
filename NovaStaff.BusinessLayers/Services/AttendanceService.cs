@@ -22,8 +22,8 @@ public class AttendanceService : IAttendanceService
     private readonly ICurrentUserService _currentUser;
     private readonly IUserRepository _userRepo;
     private readonly IAttendanceNotifier _notifier;
+    private readonly ITimeZoneProvider _timeZoneProvider;
 
-    // Sửa constructor
     public AttendanceService(
         IAttendanceRepository attendanceRepo,
         IEmployeeRepository employeeRepo,
@@ -31,7 +31,8 @@ public class AttendanceService : IAttendanceService
         IUnitOfWork uow,
         IDateTimeService dateTimeService,
         ICurrentUserService currentUser,
-        IAttendanceNotifier notifier)      // ← thêm
+        IAttendanceNotifier notifier,
+        ITimeZoneProvider timeZoneProvider)
     {
         _attendanceRepo = attendanceRepo;
         _employeeRepo = employeeRepo;
@@ -39,10 +40,10 @@ public class AttendanceService : IAttendanceService
         _uow = uow;
         _dateTimeService = dateTimeService;
         _currentUser = currentUser;
-        _notifier = notifier;              // ← thêm
+        _notifier = notifier;
+        _timeZoneProvider = timeZoneProvider;
     }
-    private DateTime GetLocalNow() =>
-    _dateTimeService.UtcNow.AddHours(7);
+
     // =========================================================
     // MAPPER
     // =========================================================
@@ -53,9 +54,9 @@ public class AttendanceService : IAttendanceService
         EmployeeId = r.EmployeeID,
         EmployeeCode = r.Employee?.EmployeeCode,
         EmployeeName = r.Employee?.FullName,
-        WorkDate = r.WorkDate,
-        CheckIn = r.CheckIn,
-        CheckOut = r.CheckOut,
+        WorkDate = r.WorkDate,      // DateOnly
+        CheckIn = r.CheckIn,       // DateTimeOffset?
+        CheckOut = r.CheckOut,      // DateTimeOffset?
         WorkHours = r.WorkHours,
         Status = r.Status,
     };
@@ -74,6 +75,15 @@ public class AttendanceService : IAttendanceService
         return record == null ? null : MapToDto(record);
     }
 
+    public async Task<AttendanceDto?> GetTodayForCurrentUserAsync(
+        CancellationToken ct = default)
+    {
+        var employeeId = await GetCurrentEmployeeIdAsync(ct);
+
+        var record = await _attendanceRepo.GetTodayAsync(employeeId, ct);
+        return record == null ? null : MapToDto(record);
+    }
+
     public async Task<IEnumerable<AttendanceDto>> GetByEmployeeAndMonthAsync(
         int employeeId,
         int year,
@@ -83,7 +93,9 @@ public class AttendanceService : IAttendanceService
         ValidateYearMonth(year, month);
         await EnsureEmployeeExistsAsync(employeeId, ct);
 
-        var records = await _attendanceRepo.GetByEmployeeAndMonthAsync(employeeId, year, month, ct);
+        var records = await _attendanceRepo.GetByEmployeeAndMonthAsync(
+            employeeId, year, month, ct);
+
         return records.Select(MapToDto);
     }
 
@@ -93,10 +105,10 @@ public class AttendanceService : IAttendanceService
         int pageSize,
         CancellationToken ct = default)
     {
-        // Validate date range
         if (filter.From.HasValue && filter.To.HasValue && filter.From > filter.To)
             throw new ArgumentException("Ngày bắt đầu phải nhỏ hơn ngày kết thúc");
 
+        // ✅ filter.From / filter.To là DateOnly — so sánh với WorkDate (DateOnly) trực tiếp
         Expression<Func<AttendanceRecord, bool>> predicate = r =>
             (!filter.EmployeeId.HasValue || r.EmployeeID == filter.EmployeeId) &&
             (!filter.DepartmentId.HasValue || r.Employee!.DepartmentID == filter.DepartmentId) &&
@@ -104,9 +116,10 @@ public class AttendanceService : IAttendanceService
             (!filter.To.HasValue || r.WorkDate <= filter.To) &&
             (!filter.Status.HasValue || r.Status == filter.Status);
 
-        Func<IQueryable<AttendanceRecord>, IOrderedQueryable<AttendanceRecord>> orderBy = filter.SortDescending
-            ? q => q.OrderByDescending(r => r.WorkDate).ThenBy(r => r.EmployeeID)
-            : q => q.OrderBy(r => r.WorkDate).ThenBy(r => r.EmployeeID);
+        Func<IQueryable<AttendanceRecord>, IOrderedQueryable<AttendanceRecord>> orderBy =
+            filter.SortDescending
+                ? q => q.OrderByDescending(r => r.WorkDate).ThenBy(r => r.EmployeeID)
+                : q => q.OrderBy(r => r.WorkDate).ThenBy(r => r.EmployeeID);
 
         var result = await _attendanceRepo.GetPagedAsync(
             pageIndex, pageSize,
@@ -132,10 +145,11 @@ public class AttendanceService : IAttendanceService
 
         return await _attendanceRepo.GetTotalHoursAsync(employeeId, year, month, ct);
     }
+
     public async Task<double> GetMyTotalHoursAsync(
-    int year,
-    int month,
-    CancellationToken ct = default)
+        int year,
+        int month,
+        CancellationToken ct = default)
     {
         ValidateYearMonth(year, month);
 
@@ -143,8 +157,9 @@ public class AttendanceService : IAttendanceService
 
         return await _attendanceRepo.GetTotalHoursAsync(employeeId, year, month, ct);
     }
+
     // =========================================================
-    // ACTIONS — Check-in / Check-out
+    // ACTIONS — HR dùng (có employeeId)
     // =========================================================
 
     public async Task<AttendanceDto> CheckInAsync(
@@ -153,23 +168,22 @@ public class AttendanceService : IAttendanceService
     {
         await EnsureEmployeeExistsAsync(employeeId, ct);
 
-        // Chỉ cho phép check-in 1 lần / ngày
         var existing = await _attendanceRepo.GetTodayAsync(employeeId, ct);
         if (existing != null)
             throw new InvalidOperationException("Nhân viên đã check-in hôm nay");
 
-        var now = GetLocalNow();
-
+        // ✅ Lưu UTC, WorkDate dùng TodayUtc (DateOnly)
         var record = new AttendanceRecord
         {
             EmployeeID = employeeId,
-            WorkDate = now.Date,
-            CheckIn = now,
+            WorkDate = _dateTimeService.TodayUtc,
+            CheckIn = _dateTimeService.UtcNow,
             Status = AttendanceStatus.Present,
         };
 
         await _attendanceRepo.AddAsync(record, ct);
         await _uow.SaveChangesAsync(ct);
+
         var dto = MapToDto(record);
         await _notifier.NotifyCheckInAsync(dto, ct);
         return dto;
@@ -181,24 +195,78 @@ public class AttendanceService : IAttendanceService
     {
         await EnsureEmployeeExistsAsync(employeeId, ct);
 
-        // Phải check-in trước
         var record = await _attendanceRepo.GetTodayAsync(employeeId, ct);
         if (record == null)
             throw new InvalidOperationException("Nhân viên chưa check-in hôm nay");
 
-        // Tránh check-out 2 lần
         if (record.CheckOut.HasValue)
             throw new InvalidOperationException("Nhân viên đã check-out hôm nay");
 
-        // Cần trackChanges=true để EF theo dõi thay đổi
-        var tracked = await _attendanceRepo.GetByIdAsync(record.RecordID, trackChanges: true, ct: ct);
-        tracked!.CheckOut = GetLocalNow();
+        var tracked = await _attendanceRepo.GetByIdAsync(
+            record.RecordID, trackChanges: true, ct: ct);
 
-        // WorkHours là computed column trong DB, sau SaveChanges EF sẽ reload
+        // ✅ Lưu UTC
+        tracked!.CheckOut = _dateTimeService.UtcNow;
+
         _attendanceRepo.Update(tracked);
         await _uow.SaveChangesAsync(ct);
 
-        // Reload để lấy WorkHours mà DB đã tính
+        await _attendanceRepo.ReloadAsync(tracked, ct);
+
+        var dto = MapToDto(tracked);
+        await _notifier.NotifyCheckOutAsync(dto, ct);
+        return dto;
+    }
+
+    // =========================================================
+    // ACTIONS — Employee tự check-in/out
+    // =========================================================
+
+    public async Task<AttendanceDto> CheckInAsync(CancellationToken ct = default)
+    {
+        var employeeId = await GetCurrentEmployeeIdAsync(ct);
+
+        var existing = await _attendanceRepo.GetTodayAsync(employeeId, ct);
+        if (existing != null)
+            throw new InvalidOperationException("Đã check-in hôm nay");
+
+        // ✅ Lưu UTC, WorkDate dùng TodayUtc (DateOnly)
+        var record = new AttendanceRecord
+        {
+            EmployeeID = employeeId,
+            WorkDate = _dateTimeService.TodayUtc,
+            CheckIn = _dateTimeService.UtcNow,
+            Status = AttendanceStatus.Present,
+        };
+
+        await _attendanceRepo.AddAsync(record, ct);
+        await _uow.SaveChangesAsync(ct);
+
+        var dto = MapToDto(record);
+        await _notifier.NotifyCheckInAsync(dto, ct);
+        return dto;
+    }
+
+    public async Task<AttendanceDto> CheckOutAsync(CancellationToken ct = default)
+    {
+        var employeeId = await GetCurrentEmployeeIdAsync(ct);
+
+        var record = await _attendanceRepo.GetTodayAsync(employeeId, ct);
+        if (record == null)
+            throw new InvalidOperationException("Chưa check-in");
+
+        if (record.CheckOut.HasValue)
+            throw new InvalidOperationException("Đã check-out");
+
+        var tracked = await _attendanceRepo.GetByIdAsync(
+            record.RecordID, trackChanges: true, ct: ct);
+
+        // ✅ Lưu UTC
+        tracked!.CheckOut = _dateTimeService.UtcNow;
+
+        _attendanceRepo.Update(tracked);
+        await _uow.SaveChangesAsync(ct);
+
         await _attendanceRepo.ReloadAsync(tracked, ct);
 
         var dto = MapToDto(tracked);
@@ -217,21 +285,22 @@ public class AttendanceService : IAttendanceService
         await EnsureEmployeeExistsAsync(request.EmployeeId, ct);
         ValidateCheckInOut(request.CheckIn, request.CheckOut);
 
-        // Kiểm tra trùng ngày
-        var workDate = request.WorkDate.Date;
+        // ✅ request.WorkDate là DateOnly — không cần .Date nữa
         var duplicateExists = await _attendanceRepo.ExistsAsync(
-            r => r.EmployeeID == request.EmployeeId && r.WorkDate == workDate, ct);
+            r => r.EmployeeID == request.EmployeeId
+              && r.WorkDate == request.WorkDate, ct);
 
         if (duplicateExists)
             throw new InvalidOperationException(
-                $"Đã tồn tại record chấm công ngày {workDate:dd/MM/yyyy} cho nhân viên này");
+                $"Đã tồn tại record chấm công ngày " +
+                $"{request.WorkDate:dd/MM/yyyy} cho nhân viên này");
 
         var record = new AttendanceRecord
         {
             EmployeeID = request.EmployeeId,
-            WorkDate = workDate,
-            CheckIn = request.CheckIn,
-            CheckOut = request.CheckOut,
+            WorkDate = request.WorkDate,   // DateOnly
+            CheckIn = request.CheckIn,    // DateTimeOffset?
+            CheckOut = request.CheckOut,   // DateTimeOffset?
             Status = request.Status,
         };
 
@@ -246,12 +315,16 @@ public class AttendanceService : IAttendanceService
         UpdateAttendanceRequest request,
         CancellationToken ct = default)
     {
-        var record = await _attendanceRepo.GetByIdAsync(recordId, trackChanges: true, ct: ct);
+        var record = await _attendanceRepo.GetByIdAsync(
+            recordId, trackChanges: true, ct: ct);
+
         if (record == null)
-            throw new KeyNotFoundException($"Không tìm thấy record chấm công ID {recordId}");
+            throw new KeyNotFoundException(
+                $"Không tìm thấy record chấm công ID {recordId}");
 
         ValidateCheckInOut(request.CheckIn, request.CheckOut);
 
+        // ✅ DateTimeOffset?
         record.CheckIn = request.CheckIn;
         record.CheckOut = request.CheckOut;
         record.Status = request.Status;
@@ -259,7 +332,6 @@ public class AttendanceService : IAttendanceService
         _attendanceRepo.Update(record);
         await _uow.SaveChangesAsync(ct);
 
-        // Reload để lấy WorkHours computed column
         await _attendanceRepo.ReloadAsync(record, ct);
 
         var dto = MapToDto(record);
@@ -269,9 +341,12 @@ public class AttendanceService : IAttendanceService
 
     public async Task DeleteAsync(long recordId, CancellationToken ct = default)
     {
-        var record = await _attendanceRepo.GetByIdAsync(recordId, trackChanges: true, ct: ct);
+        var record = await _attendanceRepo.GetByIdAsync(
+            recordId, trackChanges: true, ct: ct);
+
         if (record == null)
-            throw new KeyNotFoundException($"Không tìm thấy record chấm công ID {recordId}");
+            throw new KeyNotFoundException(
+                $"Không tìm thấy record chấm công ID {recordId}");
 
         _attendanceRepo.Delete(record);
         await _uow.SaveChangesAsync(ct);
@@ -288,46 +363,6 @@ public class AttendanceService : IAttendanceService
             throw new KeyNotFoundException($"Không tìm thấy nhân viên ID {employeeId}");
     }
 
-    private static void ValidateYearMonth(int year, int month)
-    {
-        if (year < 2000 || year > 2100)
-            throw new ArgumentException("Năm không hợp lệ");
-
-        if (month < 1 || month > 12)
-            throw new ArgumentException("Tháng không hợp lệ (1–12)");
-    }
-    public async Task<AttendanceDto> CheckInAsync(CancellationToken ct = default)
-    {
-        var employeeId = await GetCurrentEmployeeIdAsync(ct);
-
-        var existing = await _attendanceRepo.GetTodayAsync(employeeId, ct);
-        if (existing != null)
-            throw new InvalidOperationException("Đã check-in hôm nay");
-
-        var now = GetLocalNow();
-
-        var record = new AttendanceRecord
-        {
-            EmployeeID = employeeId,
-            WorkDate = now.Date,
-            CheckIn = now,
-            Status = AttendanceStatus.Present,
-        };
-
-        await _attendanceRepo.AddAsync(record, ct);
-        await _uow.SaveChangesAsync(ct);
-
-        var dto = MapToDto(record);
-        await _notifier.NotifyCheckInAsync(dto, ct);
-        return dto;
-    }
-    public async Task<AttendanceDto?> GetTodayForCurrentUserAsync(CancellationToken ct = default)
-    {
-        var employeeId = await GetCurrentEmployeeIdAsync(ct);
-
-        var record = await _attendanceRepo.GetTodayAsync(employeeId, ct);
-        return record == null ? null : MapToDto(record);
-    }
     private async Task<int> GetCurrentEmployeeIdAsync(CancellationToken ct)
     {
         var userId = _currentUser.GetUserId()
@@ -341,37 +376,21 @@ public class AttendanceService : IAttendanceService
         return employeeId.Value;
     }
 
-    public async Task<AttendanceDto> CheckOutAsync(CancellationToken ct = default)
+    private static void ValidateYearMonth(int year, int month)
     {
-        var employeeId = await GetCurrentEmployeeIdAsync(ct);
+        if (year < 2000 || year > 2100)
+            throw new ArgumentException("Năm không hợp lệ");
 
-        var record = await _attendanceRepo.GetTodayAsync(employeeId, ct);
-        if (record == null)
-            throw new InvalidOperationException("Chưa check-in");
-
-        if (record.CheckOut.HasValue)
-            throw new InvalidOperationException("Đã check-out");
-
-        var tracked = await _attendanceRepo.GetByIdAsync(record.RecordID, true, ct: ct);
-
-        tracked!.CheckOut = GetLocalNow();
-
-        _attendanceRepo.Update(tracked);
-        await _uow.SaveChangesAsync(ct);
-
-        await _attendanceRepo.ReloadAsync(tracked, ct);
-
-        var dto = MapToDto(tracked);
-        await _notifier.NotifyCheckOutAsync(dto, ct);
-        return dto;
+        if (month < 1 || month > 12)
+            throw new ArgumentException("Tháng không hợp lệ (1–12)");
     }
 
-    private static void ValidateCheckInOut(DateTime? checkIn, DateTime? checkOut)
+    // ✅ DateTime? → DateTimeOffset?
+    private static void ValidateCheckInOut(
+        DateTimeOffset? checkIn,
+        DateTimeOffset? checkOut)
     {
-        // CheckOut không được trước CheckIn
         if (checkIn.HasValue && checkOut.HasValue && checkOut <= checkIn)
             throw new ArgumentException("Giờ ra phải sau giờ vào");
     }
-
-    
 }

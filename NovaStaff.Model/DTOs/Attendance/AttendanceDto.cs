@@ -15,9 +15,9 @@ public class AttendanceDto
     public string? EmployeeName { get; set; }
 
     // ── Attendance Data ───────────────────────────────────
-    public DateTime WorkDate { get; set; }
-    public DateTime? CheckIn { get; set; }
-    public DateTime? CheckOut { get; set; }
+    public DateOnly WorkDate { get; set; }
+    public DateTimeOffset? CheckIn { get; set; }
+    public DateTimeOffset? CheckOut { get; set; }
     public decimal? WorkHours { get; set; }         // decimal? — đúng kiểu entity
     public AttendanceStatus Status { get; set; }
     public string StatusDisplay => Status switch     // Không cần toString() ở client

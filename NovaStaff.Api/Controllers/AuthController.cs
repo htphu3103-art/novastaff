@@ -108,8 +108,7 @@ public class AuthController : ControllerBase
                 ? SameSiteMode.Lax
                 : SameSiteMode.None,
             Path = "/",
-            Expires = new DateTimeOffset(_clock.UtcNow)
-                .AddDays(_jwt.RefreshTokenDays)
+            Expires = _clock.UtcNow.AddDays(_jwt.RefreshTokenDays)
         };
     }
 }

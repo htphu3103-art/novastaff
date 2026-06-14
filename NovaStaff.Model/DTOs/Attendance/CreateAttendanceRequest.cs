@@ -14,7 +14,7 @@ public class CreateAttendanceRequest
     public int EmployeeId { get; set; }
 
     [Required(ErrorMessage = "WorkDate không được trống")]
-    public DateTime WorkDate { get; set; }
+    public DateOnly WorkDate { get; set; }
 
     public DateTime? CheckIn { get; set; }
     public DateTime? CheckOut { get; set; }

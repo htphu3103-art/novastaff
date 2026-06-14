@@ -107,32 +107,21 @@ public class AuditInterceptor : SaveChangesInterceptor
             switch (entry.State)
             {
                 case EntityState.Added:
+
                     entry.Entity.CreatedDate = DateTime.UtcNow;
 
-                    if (userId.HasValue)
-                        entry.Entity.CreatedBy = userId;
+                    Console.WriteLine("=== BEFORE SAVE ===");
 
-                    if (!string.IsNullOrWhiteSpace(userName))
-                        entry.Entity.CreatedByName = userName;
-
-                    break;
-
-                case EntityState.Modified:
-                    entry.Entity.ModifiedDate = DateTime.UtcNow;
-
-                    if (userId.HasValue)
-                        entry.Entity.ModifiedBy = userId;
-
-                    if (!string.IsNullOrWhiteSpace(userName))
-                        entry.Entity.ModifiedByName = userName;
-
-                    entry.Property(e => e.CreatedDate).IsModified = false;
-                    entry.Property(e => e.CreatedBy).IsModified = false;
-                    entry.Property(e => e.CreatedByName).IsModified = false;
+                    foreach (var p in entry.Properties)
+                    {
+                        if (p.CurrentValue is DateTime dt)
+                        {
+                            Console.WriteLine(
+                                $"{p.Metadata.Name} => {dt.Kind} => {dt}");
+                        }
+                    }
 
                     break;
-
-                    // Case EntityState.Deleted ð? ðý?c xóa hoàn toàn ð? th?c hi?n Hard Delete
             }
         }
     }

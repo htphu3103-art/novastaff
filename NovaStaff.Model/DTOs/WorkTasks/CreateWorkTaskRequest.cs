@@ -14,9 +14,7 @@ public class CreateWorkTaskRequest
     [Required(ErrorMessage = "Vui lòng chọn độ ưu tiên")]
     public WorkTaskPriority Priority { get; set; }
 
-    public DateTime? DueDate { get; set; }
+    public DateTimeOffset? DueDate { get; set; }
 
     public int? EmployeeId { get; set; }
-
-    // Lưu ý: Không có trường Status ở đây vì service đã mặc định gán là Pending khi tạo mới
 }
