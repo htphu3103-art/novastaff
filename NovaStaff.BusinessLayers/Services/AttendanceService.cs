@@ -21,14 +21,17 @@ public class AttendanceService : IAttendanceService
     private readonly IDateTimeService _dateTimeService;
     private readonly ICurrentUserService _currentUser;
     private readonly IUserRepository _userRepo;
+    private readonly IAttendanceNotifier _notifier;
 
+    // Sửa constructor
     public AttendanceService(
         IAttendanceRepository attendanceRepo,
         IEmployeeRepository employeeRepo,
         IUserRepository userRepo,
         IUnitOfWork uow,
         IDateTimeService dateTimeService,
-        ICurrentUserService currentUser)
+        ICurrentUserService currentUser,
+        IAttendanceNotifier notifier)      // ← thêm
     {
         _attendanceRepo = attendanceRepo;
         _employeeRepo = employeeRepo;
@@ -36,6 +39,7 @@ public class AttendanceService : IAttendanceService
         _uow = uow;
         _dateTimeService = dateTimeService;
         _currentUser = currentUser;
+        _notifier = notifier;              // ← thêm
     }
     private DateTime GetLocalNow() =>
     _dateTimeService.UtcNow.AddHours(7);
@@ -166,8 +170,9 @@ public class AttendanceService : IAttendanceService
 
         await _attendanceRepo.AddAsync(record, ct);
         await _uow.SaveChangesAsync(ct);
-
-        return MapToDto(record);
+        var dto = MapToDto(record);
+        await _notifier.NotifyCheckInAsync(dto, ct);
+        return dto;
     }
 
     public async Task<AttendanceDto> CheckOutAsync(
@@ -196,7 +201,9 @@ public class AttendanceService : IAttendanceService
         // Reload để lấy WorkHours mà DB đã tính
         await _attendanceRepo.ReloadAsync(tracked, ct);
 
-        return MapToDto(tracked);
+        var dto = MapToDto(tracked);
+        await _notifier.NotifyCheckOutAsync(dto, ct);
+        return dto;
     }
 
     // =========================================================
@@ -255,7 +262,9 @@ public class AttendanceService : IAttendanceService
         // Reload để lấy WorkHours computed column
         await _attendanceRepo.ReloadAsync(record, ct);
 
-        return MapToDto(record);
+        var dto = MapToDto(record);
+        await _notifier.NotifyRecordUpdatedAsync(dto, ct);
+        return dto;
     }
 
     public async Task DeleteAsync(long recordId, CancellationToken ct = default)
@@ -266,6 +275,7 @@ public class AttendanceService : IAttendanceService
 
         _attendanceRepo.Delete(record);
         await _uow.SaveChangesAsync(ct);
+        await _notifier.NotifyRecordDeletedAsync(recordId, ct);
     }
 
     // =========================================================
@@ -307,7 +317,9 @@ public class AttendanceService : IAttendanceService
         await _attendanceRepo.AddAsync(record, ct);
         await _uow.SaveChangesAsync(ct);
 
-        return MapToDto(record);
+        var dto = MapToDto(record);
+        await _notifier.NotifyCheckInAsync(dto, ct);
+        return dto;
     }
     public async Task<AttendanceDto?> GetTodayForCurrentUserAsync(CancellationToken ct = default)
     {
@@ -349,7 +361,9 @@ public class AttendanceService : IAttendanceService
 
         await _attendanceRepo.ReloadAsync(tracked, ct);
 
-        return MapToDto(tracked);
+        var dto = MapToDto(tracked);
+        await _notifier.NotifyCheckOutAsync(dto, ct);
+        return dto;
     }
 
     private static void ValidateCheckInOut(DateTime? checkIn, DateTime? checkOut)
