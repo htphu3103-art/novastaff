@@ -61,11 +61,11 @@ export const LeaveRequestTable: React.FC<LeaveRequestTableProps> = ({
     const getLeaveTypeLabel = (type: LeaveType) => {
         switch (type) {
             case LeaveType.Annual: return 'Nghỉ phép năm';
-            case LeaveType.Sick: return 'Nghỉ ốm';
-            case LeaveType.Unpaid: return 'Nghỉ không lương';
+            case LeaveType.Sick: return 'Nghỉ bệnh';
             case LeaveType.Maternity: return 'Nghỉ thai sản';
-            case LeaveType.Other: return 'Khác';
-            default: return type;
+            case LeaveType.Unpaid: return 'Nghỉ không lương';
+            case LeaveType.Compensatory: return 'Nghỉ bù';
+            default: return 'Không xác định';
         }
     };
 

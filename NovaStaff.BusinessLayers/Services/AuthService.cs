@@ -38,9 +38,9 @@ public class AuthService : IAuthService
         _activationTokenService = activationTokenService;
     }
 
-    public async Task<LoginResponse> LoginAsync(string email, string password)
+    public async Task<LoginResponse> LoginAsync(string username, string password)
     {
-        var user = await _userRepo.GetForLoginByEmailAsync(email);
+        var user = await _userRepo.GetForLoginByUsernameAsync(username);
 
         if (user is null)
             throw new UnauthorizedAccessException("Invalid email or password");

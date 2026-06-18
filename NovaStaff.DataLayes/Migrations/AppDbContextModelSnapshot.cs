@@ -46,7 +46,7 @@ namespace NovaStaff.DataLayers.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTimeOffset>("CreatedDate")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
@@ -77,7 +77,7 @@ namespace NovaStaff.DataLayers.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<DateTime?>("ModifiedDate")
+                    b.Property<DateTimeOffset?>("ModifiedDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<short?>("OrgLevel")
@@ -123,7 +123,7 @@ namespace NovaStaff.DataLayers.Migrations
                     b.Property<int?>("ApprovedBy")
                         .HasColumnType("int");
 
-                    b.Property<DateTime?>("ApprovedDate")
+                    b.Property<DateTimeOffset?>("ApprovedDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedBy")
@@ -133,7 +133,7 @@ namespace NovaStaff.DataLayers.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTimeOffset>("CreatedDate")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
@@ -141,8 +141,8 @@ namespace NovaStaff.DataLayers.Migrations
                     b.Property<int?>("EmployeeID")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("FromDate")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<DateOnly>("FromDate")
+                        .HasColumnType("date");
 
                     b.Property<bool>("IsHalfDayEnd")
                         .HasColumnType("boolean");
@@ -162,7 +162,7 @@ namespace NovaStaff.DataLayers.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<DateTime?>("ModifiedDate")
+                    b.Property<DateTimeOffset?>("ModifiedDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Reason")
@@ -174,8 +174,8 @@ namespace NovaStaff.DataLayers.Migrations
                         .HasColumnType("smallint")
                         .HasDefaultValue((byte)1);
 
-                    b.Property<DateTime>("ToDate")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<DateOnly>("ToDate")
+                        .HasColumnType("date");
 
                     b.Property<double>("TotalDays")
                         .HasColumnType("double precision");
@@ -210,11 +210,11 @@ namespace NovaStaff.DataLayers.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("RecordID"));
 
-                    b.Property<DateTime?>("CheckIn")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<DateTimeOffset?>("CheckIn")
+                        .HasColumnType("timestamptz");
 
-                    b.Property<DateTime?>("CheckOut")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<DateTimeOffset?>("CheckOut")
+                        .HasColumnType("timestamptz");
 
                     b.Property<int?>("CreatedBy")
                         .HasColumnType("int");
@@ -223,7 +223,7 @@ namespace NovaStaff.DataLayers.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTimeOffset>("CreatedDate")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
@@ -238,7 +238,7 @@ namespace NovaStaff.DataLayers.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<DateTime?>("ModifiedDate")
+                    b.Property<DateTimeOffset?>("ModifiedDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Note")
@@ -250,9 +250,9 @@ namespace NovaStaff.DataLayers.Migrations
                         .HasColumnType("smallint")
                         .HasDefaultValue((byte)0);
 
-                    b.Property<DateTime>("WorkDate")
+                    b.Property<DateOnly>("WorkDate")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
+                        .HasColumnType("date")
                         .HasDefaultValueSql("CURRENT_DATE");
 
                     b.Property<decimal?>("WorkHours")
@@ -295,7 +295,7 @@ namespace NovaStaff.DataLayers.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<DateTime>("ChangedDate")
+                    b.Property<DateTimeOffset>("ChangedDate")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
@@ -355,7 +355,7 @@ namespace NovaStaff.DataLayers.Migrations
                     b.Property<string>("CreatedByName")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTimeOffset>("CreatedDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
@@ -371,7 +371,7 @@ namespace NovaStaff.DataLayers.Migrations
                     b.Property<string>("ModifiedByName")
                         .HasColumnType("text");
 
-                    b.Property<DateTime?>("ModifiedDate")
+                    b.Property<DateTimeOffset?>("ModifiedDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Name")
@@ -404,13 +404,13 @@ namespace NovaStaff.DataLayers.Migrations
                     b.Property<string>("CreatedByName")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTimeOffset>("CreatedDate")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime>("JoinedAt")
+                    b.Property<DateTimeOffset>("JoinedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime?>("LastReadAt")
+                    b.Property<DateTimeOffset?>("LastReadAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedBy")
@@ -419,7 +419,7 @@ namespace NovaStaff.DataLayers.Migrations
                     b.Property<string>("ModifiedByName")
                         .HasColumnType("text");
 
-                    b.Property<DateTime?>("ModifiedDate")
+                    b.Property<DateTimeOffset?>("ModifiedDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("Role")
@@ -460,10 +460,10 @@ namespace NovaStaff.DataLayers.Migrations
                     b.Property<string>("CreatedByName")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTimeOffset>("CreatedDate")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTimeOffset?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("IsDeleted")
@@ -475,7 +475,7 @@ namespace NovaStaff.DataLayers.Migrations
                     b.Property<string>("ModifiedByName")
                         .HasColumnType("text");
 
-                    b.Property<DateTime?>("ModifiedDate")
+                    b.Property<DateTimeOffset?>("ModifiedDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ReplyToMessageID")
@@ -515,8 +515,8 @@ namespace NovaStaff.DataLayers.Migrations
                         .HasColumnType("numeric(18,4)")
                         .HasComment("Lương cơ bản hàng tháng");
 
-                    b.Property<DateTime?>("BirthDate")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<DateOnly?>("BirthDate")
+                        .HasColumnType("date");
 
                     b.Property<string>("ContractType")
                         .HasColumnType("text");
@@ -528,7 +528,7 @@ namespace NovaStaff.DataLayers.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTimeOffset>("CreatedDate")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
@@ -558,8 +558,8 @@ namespace NovaStaff.DataLayers.Migrations
                     b.Property<int?>("JobLevel")
                         .HasColumnType("integer");
 
-                    b.Property<DateTime?>("JoinDate")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<DateOnly?>("JoinDate")
+                        .HasColumnType("date");
 
                     b.Property<int?>("ModifiedBy")
                         .HasColumnType("int");
@@ -568,7 +568,7 @@ namespace NovaStaff.DataLayers.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<DateTime?>("ModifiedDate")
+                    b.Property<DateTimeOffset?>("ModifiedDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Phone")
@@ -632,7 +632,7 @@ namespace NovaStaff.DataLayers.Migrations
                     b.Property<string>("CreatedByName")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTimeOffset>("CreatedDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("FileName")
@@ -654,7 +654,7 @@ namespace NovaStaff.DataLayers.Migrations
                     b.Property<string>("ModifiedByName")
                         .HasColumnType("text");
 
-                    b.Property<DateTime?>("ModifiedDate")
+                    b.Property<DateTimeOffset?>("ModifiedDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("MessageAttachmentID");
@@ -681,7 +681,7 @@ namespace NovaStaff.DataLayers.Migrations
                     b.Property<string>("CreatedByName")
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTimeOffset>("CreatedDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Emoji")
@@ -695,7 +695,7 @@ namespace NovaStaff.DataLayers.Migrations
                     b.Property<string>("ModifiedByName")
                         .HasColumnType("text");
 
-                    b.Property<DateTime?>("ModifiedDate")
+                    b.Property<DateTimeOffset?>("ModifiedDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("UserID")
@@ -737,7 +737,7 @@ namespace NovaStaff.DataLayers.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTimeOffset>("CreatedDate")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
@@ -755,14 +755,14 @@ namespace NovaStaff.DataLayers.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<DateTime?>("ModifiedDate")
+                    b.Property<DateTimeOffset?>("ModifiedDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<decimal>("NetSalary")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
-                    b.Property<DateTime?>("PaidDate")
+                    b.Property<DateTimeOffset?>("PaidDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("PeriodID")
@@ -803,106 +803,6 @@ namespace NovaStaff.DataLayers.Migrations
                         });
                 });
 
-            modelBuilder.Entity("NovaStaff.Models.Entities.PayrollPeriod", b =>
-                {
-                    b.Property<int>("PeriodID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("PeriodID"));
-
-                    b.Property<int?>("CreatedBy")
-                        .HasColumnType("int");
-
-                    b.Property<string>("CreatedByName")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTime>("CreatedDate")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<DateTime>("EndDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("ModifiedBy")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ModifiedByName")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTime?>("ModifiedDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Month")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("StartDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<byte>("Status")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("smallint")
-                        .HasDefaultValue((byte)1);
-
-                    b.Property<int>("Year")
-                        .HasColumnType("integer");
-
-                    b.HasKey("PeriodID");
-
-                    b.HasIndex("Status")
-                        .HasDatabaseName("IX_PayrollPeriods_Status");
-
-                    b.HasIndex("Month", "Year")
-                        .IsUnique()
-                        .HasDatabaseName("IX_PayrollPeriods_Month_Year");
-
-                    b.ToTable("PayrollPeriods", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_PayrollPeriod_DateRange", "\"EndDate\" >= \"StartDate\"");
-
-                            t.HasCheckConstraint("CK_PayrollPeriod_Month", "\"Month\" BETWEEN 1 AND 12");
-
-                            t.HasCheckConstraint("CK_PayrollPeriod_Status", "\"Status\" IN (0, 1, 2, 3, 4)");
-                        });
-                });
-
-            modelBuilder.Entity("NovaStaff.Models.Entities.RefreshToken", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ReplacedByTokenHash")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("RevokedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("TokenHash")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("UserID")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserID");
-
-                    b.ToTable("RefreshTokens");
-                });
-
             modelBuilder.Entity("NovaStaff.Models.Entities.WorkTask", b =>
                 {
                     b.Property<int>("TaskID")
@@ -911,7 +811,7 @@ namespace NovaStaff.DataLayers.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("TaskID"));
 
-                    b.Property<DateTime?>("CompletedDate")
+                    b.Property<DateTimeOffset?>("CompletedDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("CreatedBy")
@@ -921,7 +821,7 @@ namespace NovaStaff.DataLayers.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTimeOffset>("CreatedDate")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
@@ -930,7 +830,7 @@ namespace NovaStaff.DataLayers.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
-                    b.Property<DateTime?>("DueDate")
+                    b.Property<DateTimeOffset?>("DueDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("EmployeeID")
@@ -943,7 +843,7 @@ namespace NovaStaff.DataLayers.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<DateTime?>("ModifiedDate")
+                    b.Property<DateTimeOffset?>("ModifiedDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<byte>("Priority")
@@ -978,6 +878,106 @@ namespace NovaStaff.DataLayers.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PayrollPeriod", b =>
+                {
+                    b.Property<int>("PeriodID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("PeriodID"));
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CreatedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTimeOffset>("CreatedDate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ModifiedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTimeOffset?>("ModifiedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Month")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<byte>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("smallint")
+                        .HasDefaultValue((byte)1);
+
+                    b.Property<int>("Year")
+                        .HasColumnType("integer");
+
+                    b.HasKey("PeriodID");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_PayrollPeriods_Status");
+
+                    b.HasIndex("Month", "Year")
+                        .IsUnique()
+                        .HasDatabaseName("IX_PayrollPeriods_Month_Year");
+
+                    b.ToTable("PayrollPeriods", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_PayrollPeriod_DateRange", "\"EndDate\" >= \"StartDate\"");
+
+                            t.HasCheckConstraint("CK_PayrollPeriod_Month", "\"Month\" BETWEEN 1 AND 12");
+
+                            t.HasCheckConstraint("CK_PayrollPeriod_Status", "\"Status\" IN (0, 1, 2, 3, 4)");
+                        });
+                });
+
+            modelBuilder.Entity("RefreshToken", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReplacedByTokenHash")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("UserID")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserID");
+
+                    b.ToTable("RefreshTokens");
+                });
+
             modelBuilder.Entity("User", b =>
                 {
                     b.Property<int>("UserID")
@@ -993,12 +993,12 @@ namespace NovaStaff.DataLayers.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTimeOffset>("CreatedDate")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-                    b.Property<DateTime?>("DeletedAt")
+                    b.Property<DateTimeOffset?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("EmployeeID")
@@ -1022,13 +1022,13 @@ namespace NovaStaff.DataLayers.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);
 
-                    b.Property<DateTime?>("LastLogin")
+                    b.Property<DateTimeOffset?>("LastLogin")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime?>("LastPasswordChange")
+                    b.Property<DateTimeOffset?>("LastPasswordChange")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime?>("LockoutEnd")
+                    b.Property<DateTimeOffset?>("LockoutEnd")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("ModifiedBy")
@@ -1038,7 +1038,7 @@ namespace NovaStaff.DataLayers.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<DateTime?>("ModifiedDate")
+                    b.Property<DateTimeOffset?>("ModifiedDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("PasswordHash")
@@ -1220,7 +1220,7 @@ namespace NovaStaff.DataLayers.Migrations
                         .HasForeignKey("EmployeeID")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("NovaStaff.Models.Entities.PayrollPeriod", "Period")
+                    b.HasOne("PayrollPeriod", "Period")
                         .WithMany("PayrollDetails")
                         .HasForeignKey("PeriodID")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -1231,17 +1231,6 @@ namespace NovaStaff.DataLayers.Migrations
                     b.Navigation("Period");
                 });
 
-            modelBuilder.Entity("NovaStaff.Models.Entities.RefreshToken", b =>
-                {
-                    b.HasOne("User", "User")
-                        .WithMany("RefreshTokens")
-                        .HasForeignKey("UserID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("NovaStaff.Models.Entities.WorkTask", b =>
                 {
                     b.HasOne("NovaStaff.Models.Entities.Employee", "Employee")
@@ -1250,6 +1239,17 @@ namespace NovaStaff.DataLayers.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("RefreshToken", b =>
+                {
+                    b.HasOne("User", "User")
+                        .WithMany("RefreshTokens")
+                        .HasForeignKey("UserID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("User", b =>
@@ -1298,7 +1298,7 @@ namespace NovaStaff.DataLayers.Migrations
                     b.Navigation("WorkTasks");
                 });
 
-            modelBuilder.Entity("NovaStaff.Models.Entities.PayrollPeriod", b =>
+            modelBuilder.Entity("PayrollPeriod", b =>
                 {
                     b.Navigation("PayrollDetails");
                 });

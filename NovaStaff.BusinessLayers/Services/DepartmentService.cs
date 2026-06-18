@@ -141,9 +141,7 @@ private const string CacheKey = "departments:roots";
             };
 
             await _repo.AddAsync(dept, token);
-            await _uow.SaveChangesAsync(token);  // ✅ Tech Audit (Interceptor)
-
-            // ✅ BUSINESS AUDIT
+            await _uow.SaveChangesAsync(token);  
             //await _audit.LogAsync("Departments", $"NEW|{dept.DepartmentID}", AuditAction.Insert, null, request);
 
             return dept.DepartmentID;

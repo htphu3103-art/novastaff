@@ -38,8 +38,8 @@ const itemVariants: Variants = {
 
 const tabContentVariants: Variants = {
     hidden: { opacity: 0, y: 10 },
-    visible: { 
-        opacity: 1, 
+    visible: {
+        opacity: 1,
         y: 0,
         transition: { duration: 0.3, ease: "easeOut" }
     }
@@ -93,7 +93,10 @@ export default function AdminAttendancePage() {
 
             const [empRes, attRes, leaveRes] = await Promise.all([
                 employeeApi.getPaged({}, 1, 1),
-                attendanceApi.getPaged({ from: today.toISOString(), to: endOfDay.toISOString() }, 1, 1000),
+                attendanceApi.getPaged({
+                    from: today.format('YYYY-MM-DD'),
+                    to: endOfDay.format('YYYY-MM-DD')
+                }, 1, 1000),
                 leaveRequestApi.getPending()
             ]);
 
@@ -229,13 +232,13 @@ export default function AdminAttendancePage() {
     }, [leaveRequests]);
 
     return (
-        <motion.div 
+        <motion.div
             className="admin-attendance-page"
             variants={containerVariants}
             initial="hidden"
             animate="visible"
         >
-            <motion.div 
+            <motion.div
                 style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}
                 variants={itemVariants}
             >
@@ -363,17 +366,35 @@ export default function AdminAttendancePage() {
                                             onView={(record: LeaveRequestDto) => {
                                                 modal.info({
                                                     title: 'Chi tiết đơn nghỉ phép',
-                                                    content: (
-                                                        <div style={{ marginTop: 16 }}>
-                                                            <p><b>Nhân viên:</b> {record.employeeName} ({record.employeeCode})</p>
-                                                            <p><b>Loại nghỉ:</b> {record.leaveType}</p>
-                                                            <p><b>Thời gian:</b> {dayjs(record.fromDate).format('DD/MM/YYYY')} - {dayjs(record.toDate).format('DD/MM/YYYY')}</p>
-                                                            <p><b>Lý do:</b> {record.reason}</p>
-                                                            <p><b>Trạng thái:</b> {record.status}</p>
-                                                            {record.approvedBy && <p><b>Người duyệt (ID):</b> {record.approvedBy}</p>}
-                                                            {record.approvedDate && <p><b>Ngày duyệt:</b> {dayjs(record.approvedDate).format('DD/MM/YYYY HH:mm')}</p>}
-                                                        </div>
-                                                    ),
+                                                    content: (() => {
+                                                        const leaveTypeLabel: Record<number, string> = {
+                                                            [LeaveType.Unknown]: 'Không xác định',
+                                                            [LeaveType.Annual]: 'Nghỉ phép năm',
+                                                            [LeaveType.Sick]: 'Nghỉ bệnh',
+                                                            [LeaveType.Maternity]: 'Nghỉ thai sản',
+                                                            [LeaveType.Unpaid]: 'Nghỉ không lương',
+                                                            [LeaveType.Compensatory]: 'Nghỉ bù',
+                                                        };
+
+                                                        const statusLabel: Record<number, string> = {
+                                                            [LeaveRequestStatus.Pending]: 'Chờ duyệt',
+                                                            [LeaveRequestStatus.Approved]: 'Đã duyệt',
+                                                            [LeaveRequestStatus.Rejected]: 'Từ chối',
+                                                            [LeaveRequestStatus.Cancelled]: 'Đã hủy',
+                                                        };
+
+                                                        return (
+                                                            <div style={{ marginTop: 16 }}>
+                                                                <p><b>Nhân viên:</b> {record.employeeName} ({record.employeeCode})</p>
+                                                                <p><b>Loại nghỉ:</b> {leaveTypeLabel[record.leaveType] ?? 'Không xác định'}</p>
+                                                                <p><b>Thời gian:</b> {dayjs(record.fromDate).format('DD/MM/YYYY')} - {dayjs(record.toDate).format('DD/MM/YYYY')}</p>
+                                                                <p><b>Lý do:</b> {record.reason}</p>
+                                                                <p><b>Trạng thái:</b> {statusLabel[record.status] ?? 'Không xác định'}</p>
+                                                                {record.approvedBy && <p><b>Người duyệt (ID):</b> {record.approvedBy}</p>}
+                                                                {record.approvedDate && <p><b>Ngày duyệt:</b> {dayjs(record.approvedDate).format('DD/MM/YYYY HH:mm')}</p>}
+                                                            </div>
+                                                        );
+                                                    })(),
                                                     width: 500
                                                 });
                                             }}

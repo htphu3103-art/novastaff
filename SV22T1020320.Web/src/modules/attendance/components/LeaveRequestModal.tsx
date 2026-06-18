@@ -30,12 +30,12 @@ export const LeaveRequestModal = ({ open, onCancel, onSuccess }: LeaveRequestMod
             setLoading(true);
             try {
                 const [fromDate, toDate] = values.range;
-                
+
                 const requestData: CreateLeaveRequest = {
-                    employeeId: 0, // Gửi 0 để Backend tự lấy từ Token (giống Swagger test)
+                    employeeId: 0,
                     leaveType: values.type,
-                    fromDate: fromDate.startOf('day').toISOString(),
-                    toDate: toDate.endOf('day').toISOString(),
+                    fromDate: fromDate.format('YYYY-MM-DD'),
+                    toDate: toDate.format('YYYY-MM-DD'),
                     isHalfDayStart: !!values.isHalfDayStart,
                     isHalfDayEnd: !!values.isHalfDayEnd,
                     reason: values.reason
@@ -44,7 +44,7 @@ export const LeaveRequestModal = ({ open, onCancel, onSuccess }: LeaveRequestMod
                 console.log('Sending Leave Request Payload:', requestData);
 
                 await leaveRequestApi.create(requestData);
-                
+
                 message.success('Gửi đơn xin nghỉ thành công!');
                 form.resetFields();
                 onCancel();
@@ -90,10 +90,10 @@ export const LeaveRequestModal = ({ open, onCancel, onSuccess }: LeaveRequestMod
                         >
                             <Select placeholder="Chọn loại" suffixIcon={<SolutionOutlined />}>
                                 <Select.Option value={LeaveType.Annual}>Nghỉ phép năm</Select.Option>
-                                <Select.Option value={LeaveType.Sick}>Nghỉ ốm</Select.Option>
-                                <Select.Option value={LeaveType.Unpaid}>Nghỉ không lương</Select.Option>
+                                <Select.Option value={LeaveType.Sick}>Nghỉ bệnh</Select.Option>
                                 <Select.Option value={LeaveType.Maternity}>Nghỉ thai sản</Select.Option>
-                                <Select.Option value={LeaveType.Other}>Khác</Select.Option>
+                                <Select.Option value={LeaveType.Unpaid}>Nghỉ không lương</Select.Option>
+                                <Select.Option value={LeaveType.Compensatory}>Nghỉ bù</Select.Option>
                             </Select>
                         </Form.Item>
                     </Col>
@@ -112,7 +112,7 @@ export const LeaveRequestModal = ({ open, onCancel, onSuccess }: LeaveRequestMod
                         </Form.Item>
                     </Col>
                 </Row>
-                
+
                 <Row gutter={16}>
                     <Col span={12}>
                         <Form.Item name="isHalfDayStart" valuePropName="checked">

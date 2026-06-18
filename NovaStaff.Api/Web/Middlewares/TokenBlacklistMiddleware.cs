@@ -31,6 +31,15 @@ public class TokenBlacklistMiddleware
             }
         }
 
+        // Thêm phần này:
+        var jti = context.User.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
+        if (jti != null && await blacklist.IsBlacklistedAsync(jti))
+        {
+            context.Response.StatusCode = 401;
+            await context.Response.WriteAsJsonAsync(new { message = "Phiên đăng nhập đã hết hạn." });
+            return;
+        }
+
         await _next(context);
     }
 }

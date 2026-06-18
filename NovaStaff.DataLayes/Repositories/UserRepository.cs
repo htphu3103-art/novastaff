@@ -20,12 +20,16 @@ public class UserRepository : GenericRepository<User, int>, IUserRepository
         _dateTimeService = dateTimeService;
     }
 
-    public async Task<User?> GetForLoginByEmailAsync(string email, CancellationToken ct = default)
+    public async Task<User?> GetForLoginByUsernameAsync(
+    string username,
+    CancellationToken ct = default)
     {
         return await _dbSet
             .Include(u => u.Employee)
             .AsTracking()
-            .FirstOrDefaultAsync(u => u.Employee != null && u.Employee.Email == email, ct);
+            .FirstOrDefaultAsync(
+                u => u.Username == username,
+                ct);
     }
 
     public async Task<(bool Exists, bool IsLocked, DateTimeOffset? LockoutEnd)>

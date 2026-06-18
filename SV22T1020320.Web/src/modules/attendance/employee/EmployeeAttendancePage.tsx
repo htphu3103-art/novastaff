@@ -40,8 +40,8 @@ const itemVariants: Variants = {
 
 const tabContentVariants: Variants = {
     hidden: { opacity: 0, y: 10 },
-    visible: { 
-        opacity: 1, 
+    visible: {
+        opacity: 1,
         y: 0,
         transition: { duration: 0.3, ease: "easeOut" }
     }
@@ -118,11 +118,14 @@ export default function EmployeeAttendancePage() {
             const year = value.year();
             const month = value.month() + 1;
             const [res] = await Promise.all([
-                attendanceApi.getPaged({ from: value.startOf('month').toISOString(), to: value.endOf('month').toISOString() }, 1, 100),
+                attendanceApi.getPaged({
+                    from: value.startOf('month').format('YYYY-MM-DD'),
+                    to: value.endOf('month').format('YYYY-MM-DD')
+                }, 1, 100),
                 new Promise(resolve => setTimeout(resolve, 300))
             ]);
             setMonthlyRecords(res.data.items);
-            
+
             const totalHoursRes = await attendanceApi.getTotalHoursSelf(year, month);
             setTotalHoursFromApi(totalHoursRes.data?.totalHours ?? null);
         } catch (err) {
@@ -188,13 +191,13 @@ export default function EmployeeAttendancePage() {
     }, [monthlyRecords]);
 
     return (
-        <motion.div 
+        <motion.div
             className="employee-attendance-page"
             variants={containerVariants}
             initial="hidden"
             animate="visible"
         >
-            <motion.div 
+            <motion.div
                 style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}
                 variants={itemVariants}
             >
@@ -237,14 +240,14 @@ export default function EmployeeAttendancePage() {
                                                 onCheckOut={() => handleAttendance('check-out')}
                                                 actionType={actionType}
                                             />
-                                            <Card 
+                                            <Card
                                                 title={<Space><HistoryOutlined /> Lịch sử gần đây</Space>}
                                                 style={{ borderRadius: 12, minHeight: 460 }}
                                             >
-                                                <AttendanceTable 
-                                                    isAdmin={false} 
-                                                    dataSource={monthlyRecords.slice(0, 5)} 
-                                                    loading={isHistoryLoading} 
+                                                <AttendanceTable
+                                                    isAdmin={false}
+                                                    dataSource={monthlyRecords.slice(0, 5)}
+                                                    loading={isHistoryLoading}
                                                 />
                                             </Card>
                                         </motion.div>
@@ -259,7 +262,7 @@ export default function EmployeeAttendancePage() {
                                             initial="hidden"
                                             animate="visible"
                                         >
-                                            <Card 
+                                            <Card
                                                 title={
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                         <span>Danh sách đơn đã gửi</span>
@@ -268,10 +271,10 @@ export default function EmployeeAttendancePage() {
                                                 }
                                                 style={{ borderRadius: 12, minHeight: 460 }}
                                             >
-                                                <LeaveRequestTable 
+                                                <LeaveRequestTable
                                                     dataSource={personalLeaves}
-                                                    onApprove={() => {}} 
-                                                    onReject={() => {}} 
+                                                    onApprove={() => { }}
+                                                    onReject={() => { }}
                                                     onView={(record) => {
                                                         modal.info({
                                                             title: 'Chi tiết đơn nghỉ phép',
@@ -310,9 +313,9 @@ export default function EmployeeAttendancePage() {
                                     if (!dayRecord) return info.originNode;
                                     return (
                                         <div style={{ padding: 2, height: '100%' }}>
-                                            <div style={{ 
-                                                background: getStatusDotColor(dayRecord.status), 
-                                                color: '#fff', borderRadius: 4, textAlign: 'center', height: '100%', minHeight: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' 
+                                            <div style={{
+                                                background: getStatusDotColor(dayRecord.status),
+                                                color: '#fff', borderRadius: 4, textAlign: 'center', height: '100%', minHeight: 24, display: 'flex', alignItems: 'center', justifyContent: 'center'
                                             }}>
                                                 {current.date()}
                                             </div>

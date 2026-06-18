@@ -12,11 +12,12 @@ export enum AttendanceStatus {
 }
 
 export enum LeaveType {
-    Annual = 0,
-    Sick = 1,
-    Unpaid = 2,
+    Unknown = 0,
+    Annual = 1,
+    Sick = 2,
     Maternity = 3,
-    Other = 4
+    Unpaid = 4,
+    Compensatory = 5
 }
 
 export enum LeaveRequestStatus {

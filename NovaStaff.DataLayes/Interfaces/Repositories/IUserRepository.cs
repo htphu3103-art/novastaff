@@ -55,7 +55,7 @@ public interface IUserRepository : IRepository<User, int>
         Func<IQueryable<User>, IQueryable<User>>? include = null,
         CancellationToken ct = default);
 
-    Task<User?> GetForLoginByEmailAsync(string email, CancellationToken ct = default);
+    Task<User?> GetForLoginByUsernameAsync(string username, CancellationToken ct = default);
 
     Task<(bool Exists, bool IsLocked, DateTimeOffset? LockoutEnd)>
     GetAuthStatusByEmailAsync(

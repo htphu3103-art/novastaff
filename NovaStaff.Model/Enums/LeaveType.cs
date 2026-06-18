@@ -9,11 +9,11 @@ namespace NovaStaff.Models.Enums
     public enum LeaveType : byte
     {
         Unknown = 0,
-        Annual = 1,      // Ngh? phép nãm
-        Sick = 2,        // Ngh? b?nh
-        Maternity = 3,   // Ngh? thai s?n
-        Unpaid = 4,      // Ngh? không lýõng
-        Compensatory = 5 // Ngh? bù
+        Annual = 1,      
+        Sick = 2,        
+        Maternity = 3,   
+        Unpaid = 4,      
+        Compensatory = 5 
     }
 }
 
