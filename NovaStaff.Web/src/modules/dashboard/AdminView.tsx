@@ -1,8 +1,9 @@
 import React from 'react';
 import { Row, Col, Card, Avatar, Badge, Button, Typography, Space, Flex } from 'antd';
-import { NotificationOutlined, RightOutlined } from '@ant-design/icons';
+import { NotificationOutlined } from '@ant-design/icons';
 import KPISection from './components/KPISection';
 import EmployeeTrendChart from './components/EmployeeTrendChart';
+import AttendanceDonutChart from './components/AttendanceDonutChart';
 
 const { Title, Text } = Typography;
 
@@ -28,15 +29,23 @@ const AdminView: React.FC = () => {
                 <KPISection />
             </div>
 
-            {/* Biểu đồ và Danh sách phê duyệt (tạm thời inline trước khi modular hóa) */}
-            <Row gutter={[16, 16]}>
-                {/* Khu vực biểu đồ */}
+            {/* Hàng 2: Biểu đồ */}
+            <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                {/* Khu vực biểu đồ biến động nhân sự */}
                 <Col xs={24} xl={16}>
                     <EmployeeTrendChart />
                 </Col>
 
-                {/* Danh sách yêu cầu phê duyệt */}
+                {/* Biểu đồ tròn tỷ lệ hiện diện */}
                 <Col xs={24} xl={8}>
+                    <AttendanceDonutChart />
+                </Col>
+            </Row>
+
+            {/* Hàng 3: Vận hành (Yêu cầu cần duyệt & Hoạt động gần đây) */}
+            <Row gutter={[16, 16]}>
+                {/* Danh sách yêu cầu phê duyệt */}
+                <Col xs={24} xl={12}>
                     <Card
                         title="Yêu cầu cần phê duyệt"
                         extra={<Badge count={pendingRequests.length} offset={[10, 0]} color="#f5222d" />}
@@ -75,6 +84,18 @@ const AdminView: React.FC = () => {
                         <Button block style={{ marginTop: 16, borderRadius: 6 }}>
                             Xem tất cả yêu cầu
                         </Button>
+                    </Card>
+                </Col>
+
+                {/* Hoạt động gần đây (Tạm thời placeholder trước khi modular hóa) */}
+                <Col xs={24} xl={12}>
+                    <Card
+                        title="Hoạt động gần đây"
+                        style={{ borderRadius: 12, height: '100%' }}
+                    >
+                        <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8c8c8c' }}>
+                            Đang tải hoạt động gần đây...
+                        </div>
                     </Card>
                 </Col>
             </Row>
