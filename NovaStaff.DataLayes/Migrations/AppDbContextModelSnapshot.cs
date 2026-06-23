@@ -584,6 +584,9 @@ namespace NovaStaff.DataLayers.Migrations
                     b.Property<int?>("SupervisorID")
                         .HasColumnType("int");
 
+                    b.Property<DateOnly?>("TerminationDate")
+                        .HasColumnType("date");
+
                     b.HasKey("EmployeeID");
 
                     b.HasIndex("DepartmentID");

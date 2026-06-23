@@ -23,6 +23,9 @@ public sealed class EmployeeFilter
     /// <summary>Lọc theo giới tính</summary>
     public GenderType? Gender { get; init; }
 
+    public DateOnly? JoinDateFrom { get; init; }
+    public DateOnly? JoinDateTo { get; init; }
+
     /// <summary>Lọc theo loại hợp đồng</summary>
     public string? ContractType { get; init; }
 

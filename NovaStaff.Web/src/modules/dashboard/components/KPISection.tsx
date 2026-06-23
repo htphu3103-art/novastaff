@@ -1,5 +1,5 @@
-import React from 'react';
-import { Row, Col, Card } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Row, Col, Skeleton } from 'antd';
 import {
     TeamOutlined,
     CheckCircleOutlined,
@@ -9,41 +9,82 @@ import {
     RiseOutlined
 } from '@ant-design/icons';
 import StatCard from './StatCard';
+import { dashboardApi, KpiSummaryDto } from '../api/dashboardApi';
 
 const KPISection: React.FC = () => {
+    const [data, setData] = useState<KpiSummaryDto | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const controller = new AbortController();
+
+        const fetchAll = async () => {
+            setLoading(true);
+            try {
+                const response = await dashboardApi.getKpiSummary(controller.signal);
+                setData(response.data);
+            } catch (err: any) {
+                if (err?.name !== 'CanceledError' && err?.code !== 'ERR_CANCELED') {
+                    console.error('[KPISection] Lỗi fetch dashboard KPI:', err);
+                }
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchAll();
+        return () => controller.abort();
+    }, []);
+
+    if (loading) {
+        return (
+            <Row gutter={[16, 16]}>
+                {Array.from({ length: 6 }).map((_, i) => (
+                    <Col key={i} xs={12} sm={8} lg={4}>
+                        <Skeleton.Node active style={{ width: '100%', height: 110, borderRadius: 12 }} />
+                    </Col>
+                ))}
+            </Row>
+        );
+    }
+
+    const absentDesc = [
+        data?.attendance?.absentWithLeave ? `${data.attendance.absentWithLeave} có phép` : null,
+        data?.attendance?.absentWithoutLeave ? `${data.attendance.absentWithoutLeave} không phép` : null,
+    ].filter(Boolean).join(', ') || 'Không có dữ liệu';
+
     return (
         <Row gutter={[16, 16]}>
             <Col xs={12} sm={8} lg={4}>
                 <StatCard
                     title="Tổng nhân sự"
-                    value={150}
+                    value={data?.totalEmployees ?? 0}
                     prefix={<TeamOutlined />}
-                    trend={{ value: '12%', isUp: true }}
-                    description="so với tháng trước"
+                    description="Nhân viên đang hoạt động"
                 />
             </Col>
             <Col xs={12} sm={8} lg={4}>
                 <StatCard
                     title="Có mặt hôm nay"
-                    value={142}
+                    value={data?.attendance?.presentToday ?? 0}
                     color="#52c41a"
                     prefix={<CheckCircleOutlined />}
-                    description="94% tổng nhân sự"
+                    description={`${data?.attendance?.attendanceRate ?? 0}% tổng nhân sự`}
                 />
             </Col>
             <Col xs={12} sm={8} lg={4}>
                 <StatCard
                     title="Vắng mặt"
-                    value={8}
+                    value={data?.attendance?.absentToday ?? 0}
                     color="#ff4d4f"
                     prefix={<CloseCircleOutlined />}
-                    description="5 có phép, 3 không phép"
+                    description={absentDesc}
                 />
             </Col>
             <Col xs={12} sm={8} lg={4}>
                 <StatCard
                     title="Đơn chờ duyệt"
-                    value={4}
+                    value={data?.pendingRequests ?? 0}
                     color="#fa8c16"
                     prefix={<NotificationOutlined />}
                     description="Yêu cầu mới cần xử lý"
@@ -52,17 +93,24 @@ const KPISection: React.FC = () => {
             <Col xs={12} sm={8} lg={4}>
                 <StatCard
                     title="Nhân viên mới"
-                    value={12}
+                    value={data?.newHires?.thisMonth ?? 0}
                     color="#1677ff"
                     prefix={<UserAddOutlined />}
-                    trend={{ value: '8%', isUp: true }}
+                    trend={
+                        data && data.newHires.lastMonth > 0
+                            ? {
+                                value: `${Math.abs(Math.round(data.newHires.growthRatePercent))}%`,
+                                isUp: data.newHires.thisMonth >= data.newHires.lastMonth,
+                            }
+                            : undefined
+                    }
                     description="so với tháng trước"
                 />
             </Col>
             <Col xs={12} sm={8} lg={4}>
                 <StatCard
                     title="Tỷ lệ đi làm"
-                    value={94}
+                    value={data?.attendance?.attendanceRate ?? 0}
                     suffix="%"
                     color="#13c2c2"
                     prefix={<RiseOutlined />}

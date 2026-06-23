@@ -129,38 +129,40 @@ public class EmployeeService : IEmployeeService
 
         Expression<Func<Employee, bool>> predicate = e =>
 
-            // Search
-            (string.IsNullOrEmpty(filter.NameContains)
-                || e.FullName.Contains(filter.NameContains)) &&
+    (string.IsNullOrEmpty(filter.NameContains)
+        || e.FullName.Contains(filter.NameContains)) &&
 
-            (string.IsNullOrEmpty(filter.CodeContains)
-                || e.EmployeeCode.Contains(filter.CodeContains)) &&
+    (string.IsNullOrEmpty(filter.CodeContains)
+        || e.EmployeeCode.Contains(filter.CodeContains)) &&
 
-            // Filter
-            (!filter.DepartmentId.HasValue
-                || e.DepartmentID == filter.DepartmentId) &&
+    (!filter.DepartmentId.HasValue
+        || e.DepartmentID == filter.DepartmentId) &&
 
-            (!filter.SupervisorId.HasValue
-                || e.SupervisorID == filter.SupervisorId) &&
+    (!filter.SupervisorId.HasValue
+        || e.SupervisorID == filter.SupervisorId) &&
 
-            (!filter.Status.HasValue
-                || e.Status == filter.Status) &&
+    (!filter.Status.HasValue
+        || e.Status == filter.Status) &&
 
-            (!filter.Gender.HasValue
-                || e.Gender == filter.Gender) &&
+    (!filter.Gender.HasValue
+        || e.Gender == filter.Gender) &&
 
-            (string.IsNullOrEmpty(filter.ContractType)
-                || e.ContractType == filter.ContractType) &&
+    (string.IsNullOrEmpty(filter.ContractType)
+        || e.ContractType == filter.ContractType) &&
 
-            // Permission scope
-            (
-                !accessibleDepartmentIds.Any()
-                || (
-                    e.DepartmentID.HasValue &&
-                    accessibleDepartmentIds.Contains(
-                        e.DepartmentID.Value)
-                )
-            );
+    // ── Thêm 2 dòng này ──────────────────────────────────
+    (!filter.JoinDateFrom.HasValue
+        || e.JoinDate >= filter.JoinDateFrom.Value) &&
+
+    (!filter.JoinDateTo.HasValue
+        || e.JoinDate <= filter.JoinDateTo.Value) &&
+    // ─────────────────────────────────────────────────────
+
+    (!accessibleDepartmentIds.Any()
+        || (
+            e.DepartmentID.HasValue &&
+            accessibleDepartmentIds.Contains(e.DepartmentID.Value)
+        ));
 
         Func<IQueryable<Employee>,
             IOrderedQueryable<Employee>> orderBy =
@@ -687,6 +689,7 @@ public class EmployeeService : IEmployeeService
 
                 if (shouldLock)
                 {
+                    employee.TerminationDate = DateOnly.FromDateTime(DateTime.Today);
                     await _userRepo.LockAsync(user.UserID, ct);
                     await _refreshTokenRepo.RevokeAllByUserAsync(user.UserID, ct);
                     await _tokenBlacklistService.BlacklistUserAsync(  // 👈 thêm
@@ -696,6 +699,7 @@ public class EmployeeService : IEmployeeService
                 }
                 else if (shouldUnlock)
                 {
+                    employee.TerminationDate = null;
                     await _userRepo.UnlockAsync(user.UserID, ct);
                 }
             }

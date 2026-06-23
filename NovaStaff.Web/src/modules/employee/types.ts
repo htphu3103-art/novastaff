@@ -106,6 +106,10 @@ export interface EmployeeFilter {
     contractType?: string;
     sortBy?: EmployeeSortField;
     sortDescending?: boolean;
+    /** Lọc nhân viên gia nhập từ ngày (ISO date: yyyy-MM-dd) */
+    joinDateFrom?: string;
+    /** Lọc nhân viên gia nhập đến ngày (ISO date: yyyy-MM-dd) */
+    joinDateTo?: string;
 }
 
 export interface PagedResult<T> {

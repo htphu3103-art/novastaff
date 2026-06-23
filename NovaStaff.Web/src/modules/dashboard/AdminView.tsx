@@ -1,23 +1,14 @@
 import React from 'react';
-import { Row, Col, Typography } from 'antd';
+import { Row, Col } from 'antd';
 import KPISection from './components/KPISection';
 import EmployeeTrendChart from './components/EmployeeTrendChart';
-import AttendanceDonutChart from './components/AttendanceDonutChart';
 import PendingRequestCard from './components/PendingRequestCard';
 import RecentActivitiesCard from './components/RecentActivitiesCard';
-import QuickActionsCard from './components/QuickActionsCard';
 
-const { Title, Text } = Typography;
 
 const AdminView: React.FC = () => {
     return (
         <div className="admin-dashboard-view">
-            {/* Header Section */}
-            <div style={{ marginBottom: 24 }}>
-                <Title level={4} style={{ marginTop: 0 }}>Hệ thống Quản trị Chiến lược</Title>
-                <Text type="secondary">Dữ liệu được cập nhật thời gian thực từ các phòng ban.</Text>
-            </div>
-
             {/* KPI Cards (6 card) */}
             <div style={{ marginBottom: 24 }}>
                 <KPISection />
@@ -26,13 +17,8 @@ const AdminView: React.FC = () => {
             {/* Hàng 2: Biểu đồ */}
             <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
                 {/* Khu vực biểu đồ biến động nhân sự */}
-                <Col xs={24} xl={16}>
+                <Col xs={24} xl={24}>
                     <EmployeeTrendChart />
-                </Col>
-
-                {/* Biểu đồ tròn tỷ lệ hiện diện */}
-                <Col xs={24} xl={8}>
-                    <AttendanceDonutChart />
                 </Col>
             </Row>
 
@@ -48,9 +34,6 @@ const AdminView: React.FC = () => {
                     <RecentActivitiesCard />
                 </Col>
             </Row>
-
-            {/* Hàng 4: Thao tác nhanh */}
-            <QuickActionsCard />
         </div>
     );
 };

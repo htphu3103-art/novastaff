@@ -28,6 +28,8 @@ public class Employee : BaseEntity
     public string? ContractType { get; set; }
     public EmployeeStatus Status { get; set; }
 
+    public DateOnly? TerminationDate { get; set; }
+
     // Navigation
     public Department? Department { get; set; }
     public virtual User? User { get; set; }
