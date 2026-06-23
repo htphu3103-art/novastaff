@@ -1,7 +1,8 @@
 import React from 'react';
 import { Row, Col, Card, Avatar, Badge, Button, Typography, Space, Flex } from 'antd';
-import { NotificationOutlined, RiseOutlined, RightOutlined } from '@ant-design/icons';
+import { NotificationOutlined, RightOutlined } from '@ant-design/icons';
 import KPISection from './components/KPISection';
+import EmployeeTrendChart from './components/EmployeeTrendChart';
 
 const { Title, Text } = Typography;
 
@@ -31,27 +32,7 @@ const AdminView: React.FC = () => {
             <Row gutter={[16, 16]}>
                 {/* Khu vực biểu đồ */}
                 <Col xs={24} xl={16}>
-                    <Card
-                        title="Biến động nhân sự & Hiệu suất"
-                        extra={<Button type="link" icon={<RightOutlined />}>Báo cáo chi tiết</Button>}
-                        style={{ borderRadius: 12, height: '100%' }}
-                    >
-                        <Flex
-                            vertical
-                            align="center"
-                            justify="center"
-                            style={{
-                                height: 350,
-                                background: '#fafafa',
-                                borderRadius: 8,
-                                border: '1px dashed #d9d9d9'
-                            }}
-                        >
-                            <RiseOutlined style={{ fontSize: 48, color: '#d9d9d9', marginBottom: 16 }} />
-                            <Text type="secondary">Khu vực hiển thị biểu đồ Recharts / Ant Design Charts</Text>
-                            <Text type="secondary" style={{ fontSize: 12 }}>(Biểu đồ đường thể hiện nhân sự mới và nghỉ việc)</Text>
-                        </Flex>
-                    </Card>
+                    <EmployeeTrendChart />
                 </Col>
 
                 {/* Danh sách yêu cầu phê duyệt */}
