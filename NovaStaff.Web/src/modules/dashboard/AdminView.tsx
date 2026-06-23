@@ -5,6 +5,7 @@ import EmployeeTrendChart from './components/EmployeeTrendChart';
 import AttendanceDonutChart from './components/AttendanceDonutChart';
 import PendingRequestCard from './components/PendingRequestCard';
 import RecentActivitiesCard from './components/RecentActivitiesCard';
+import QuickActionsCard from './components/QuickActionsCard';
 
 const { Title, Text } = Typography;
 
@@ -36,7 +37,7 @@ const AdminView: React.FC = () => {
             </Row>
 
             {/* Hàng 3: Vận hành (Yêu cầu cần duyệt & Hoạt động gần đây) */}
-            <Row gutter={[16, 16]}>
+            <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
                 {/* Danh sách yêu cầu phê duyệt */}
                 <Col xs={24} xl={12}>
                     <PendingRequestCard />
@@ -47,6 +48,9 @@ const AdminView: React.FC = () => {
                     <RecentActivitiesCard />
                 </Col>
             </Row>
+
+            {/* Hàng 4: Thao tác nhanh */}
+            <QuickActionsCard />
         </div>
     );
 };

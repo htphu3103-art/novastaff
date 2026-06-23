@@ -32,8 +32,8 @@ const PendingRequestCard: React.FC = () => {
                         >
                             <Space size="middle">
                                 <Avatar
-                                    style={{ backgroundColor: `${config.color}15` }} // Adds transparency to background
-                                    icon={React.cloneElement(config.icon as React.ReactElement, { style: { color: config.color } })}
+                                    style={{ backgroundColor: `${config.color}15`, color: config.color }} // Adds transparency to background and colors the icon
+                                    icon={config.icon}
                                 />
                                 <div>
                                     <Text strong style={{ fontSize: 13, display: 'block' }}>
