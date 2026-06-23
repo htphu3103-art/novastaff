@@ -1,18 +1,11 @@
 import React from 'react';
 import { Row, Col, Card, Avatar, Badge, Button, Typography, Space, Flex } from 'antd';
-import {
-    TeamOutlined,
-    CheckCircleOutlined,
-    RiseOutlined,
-    NotificationOutlined,
-    CloseCircleOutlined,
-    RightOutlined
-} from '@ant-design/icons';
-import StatCard from './StatCard';
+import { NotificationOutlined, RiseOutlined, RightOutlined } from '@ant-design/icons';
+import KPISection from './components/KPISection';
 
 const { Title, Text } = Typography;
 
-// Dữ liệu giả lập cho danh sách phê duyệt
+// Dữ liệu giả lập tạm thời cho danh sách phê duyệt (sẽ tách file sau)
 const pendingRequests = [
     { id: 1, title: 'Đơn nghỉ phép - Nguyễn Văn A', time: '10 phút trước', type: 'Leave' },
     { id: 2, title: 'Yêu cầu tuyển dụng - Team IT', time: '1 giờ trước', type: 'Hiring' },
@@ -29,49 +22,13 @@ const AdminView: React.FC = () => {
                 <Text type="secondary">Dữ liệu được cập nhật thời gian thực từ các phòng ban.</Text>
             </div>
 
-            {/* Thống kê nhanh sử dụng StatCard */}
-            <Row gutter={[16, 16]}>
-                <Col xs={24} sm={12} lg={6}>
-                    <StatCard
-                        title="Tổng nhân sự"
-                        value={150}
-                        prefix={<TeamOutlined />}
-                        trend={{ value: '12%', isUp: true }}
-                        description="so với tháng trước"
-                    />
-                </Col>
-                <Col xs={24} sm={12} lg={6}>
-                    <StatCard
-                        title="Đang có mặt"
-                        value={142}
-                        color="#3f8600"
-                        prefix={<CheckCircleOutlined />}
-                        description="94% tổng nhân sự"
-                    />
-                </Col>
-                <Col xs={24} sm={12} lg={6}>
-                    <StatCard
-                        title="Vắng mặt"
-                        value={8}
-                        color="#cf1322"
-                        prefix={<CloseCircleOutlined />}
-                        description="5 có phép, 3 không phép"
-                    />
-                </Col>
-                <Col xs={24} sm={12} lg={6}>
-                    <StatCard
-                        title="Quỹ lương"
-                        value={1.2}
-                        suffix="tỷ"
-                        prefix={<RiseOutlined />}
-                        color="#722ed1"
-                        description="Tổng chi trả dự kiến"
-                    />
-                </Col>
-            </Row>
+            {/* KPI Cards (6 card) */}
+            <div style={{ marginBottom: 24 }}>
+                <KPISection />
+            </div>
 
-            {/* Biểu đồ và Danh sách phê duyệt */}
-            <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
+            {/* Biểu đồ và Danh sách phê duyệt (tạm thời inline trước khi modular hóa) */}
+            <Row gutter={[16, 16]}>
                 {/* Khu vực biểu đồ */}
                 <Col xs={24} xl={16}>
                     <Card
@@ -97,7 +54,7 @@ const AdminView: React.FC = () => {
                     </Card>
                 </Col>
 
-                {/* Danh sách yêu cầu phê duyệt - Đã sửa lỗi Deprecated List */}
+                {/* Danh sách yêu cầu phê duyệt */}
                 <Col xs={24} xl={8}>
                     <Card
                         title="Yêu cầu cần phê duyệt"

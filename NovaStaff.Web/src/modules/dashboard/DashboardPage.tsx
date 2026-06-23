@@ -1,5 +1,5 @@
 import React from 'react';
-import AdminView from './components/AdminView';
+import AdminView from './AdminView';
 import EmployeeView from './components/EmployeeView';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserRole } from '../auth/types';
